@@ -43,7 +43,8 @@ public class SimpleScene implements GLEventListener {
     public SimpleScene() {
     	myObjects = new Vector<MyObject>();
     	//myObjects.add(new Square());
-    	myObjects.add(new SquareBasedPyramid(-0.5f,-0.5f,10));
+    	//myObjects.add(new SquareBasedPyramid(-0.5f,-0.5f,10));
+    	myObjects.add(new Star(-0.5f, -0.5f, 1.5f));
 	}
     
     abstract class MyObject {
@@ -101,6 +102,7 @@ public class SimpleScene implements GLEventListener {
 		public void render(GLAutoDrawable drawable) {
 			float d = squareDiameter;
     		GL2 gl = drawable.getGL().getGL2();
+    		gl.glPushMatrix();
     		gl.glBegin(GL2.GL_LINE_LOOP);
     		gl.glVertex3f(x, y, 0.0f); // start
     		for(int i=1; i<=levels; i++) {
@@ -114,11 +116,57 @@ public class SimpleScene implements GLEventListener {
         		j++;
     		}
     		gl.glVertex3f(x+d*(levels*2-1), y, 0.0f); // end
+    		gl.glPopMatrix();
     		gl.glEnd();
 		}
     }
     
-    class Star {
+    class Star extends MyObject {
+
+    	private float x;
+    	private float y;
+    	private float r;
+    	public Star(float x, float y, float r) {
+    		this.x = x;
+    		this.y = y;
+    		this.r = r;
+		}
+    	
+		public void render(GLAutoDrawable drawable) {
+    		GL2 gl = drawable.getGL().getGL2();
+    		
+    		gl.glPushMatrix();
+    		gl.glBegin(GL2.GL_POLYGON);
+    		/*
+    		    .9
+    		   .10 .8
+    		1.        7.
+    		  2. 4. 6.  
+    		 3.     5.
+    		 
+    		 */
+
+    		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
+    		gl.glColor3f(0.0f, 1.0f, 0.0f);
+    		gl.glPopAttrib();
+    		r=0.8f;
+    		x=0.0f;
+    		y=0.0f;
+    		
+    		gl.glVertex3f(x-r, y, 0.0f);
+    		gl.glVertex3f(x-r*0.3f, y-r*0.2f, 0.0f);
+    		gl.glVertex3f(x-r*0.6f, y-r*0.8f, 0.0f);
+    		gl.glVertex3f(x, y-r*0.2f, 0.0f);
+    		gl.glVertex3f(x+r*0.6f, y-r*0.8f, 0.0f);
+    		gl.glVertex3f(x+r*0.3f, y-r*0.2f, 0.0f);
+    		gl.glVertex3f(x+r, y, 0.0f);
+    		gl.glVertex3f(x+r*0.2f, y+r*0.3f, 0.0f);
+    		gl.glVertex3f(x, y+r*1.0f, 0.0f);
+    		gl.glVertex3f(x-r*0.2f, y+r*0.3f, 0.0f);
+    		gl.glEnd();
+    		gl.glPopMatrix();
+    		//System.out.println("rendering star...");
+		}
     	
     }
 
