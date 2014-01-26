@@ -3,6 +3,9 @@ import java.awt.Frame;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.util.Random;
 import java.util.Vector;
 
@@ -10,6 +13,7 @@ import javax.media.opengl.*;
 import javax.media.opengl.awt.GLCanvas;
 import javax.media.opengl.awt.GLJPanel;
 
+import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.util.*;
 
 public class SimpleScene implements GLEventListener {
@@ -232,15 +236,6 @@ public class SimpleScene implements GLEventListener {
     	
     }
 
-    /**
-     * Have more than one viewport where you draw the scene from
-     *  a different point of view.
-     * Demonstrate some more advanced OpenGL 
-     *  implementation (vertex arrays, display lists)
-     * Buffer!
-     * @author oskkla-9
-     *
-     */
     class MoreComplexPrimitive extends MyObject {
     	private int indiciesArray[] = {
 			0,1,2,3,4,5,6,7
@@ -248,54 +243,101 @@ public class SimpleScene implements GLEventListener {
 		final int VERTICES=8, VELEMENTS=3, 
 				BUFFER_SIZE=VERTICES*VELEMENTS*8;
 		ByteBuffer vertices = ByteBuffer.allocateDirect(BUFFER_SIZE);
-		ByteBuffer indicies = ByteBuffer.allocateDirect(VERTICES*8);
 		ByteBuffer colors = ByteBuffer.allocateDirect(BUFFER_SIZE);
+		ByteBuffer indicies = ByteBuffer.allocateDirect(VERTICES*8);
+		
+		private int[] bufferIds = new int[2];
     	
-    	public MoreComplexPrimitive() {
-    		float vertexArray[][] = {
-    			{0.0f,0.0f,1.0f},
-    			{0.0f,0.0f,1.0f},
-    			{0.0f,0.0f,1.0f},
-    			{0.0f,0.0f,1.0f},
-    			{0.0f,0.0f,1.0f},
-    			{0.0f,0.0f,1.0f},
-    			{0.0f,0.0f,1.0f},
-    			{0.0f,0.0f,1.0f}
+    	public MoreComplexPrimitive(GLAutoDrawable drawable) {
+    		float vertexArray[] = {
+    			0.0f,0.0f,0.5f,
+    			0.0f,0.0f,0.5f,
+    			0.0f,0.0f,0.5f,
+    			0.0f,0.0f,0.5f,
+    			0.0f,0.0f,0.5f,
+    			0.0f,0.0f,0.5f,
+    			0.0f,0.0f,0.5f,
+    			0.0f,0.0f,0.5f
     		};
-    		float colorsArray[][] = {
-    			{0.0f,1.0f,1.0f},
-    			{0.0f,1.0f,1.0f},
-    			{0.0f,1.0f,1.0f},
-    			{0.0f,1.0f,1.0f},
-    			{0.0f,1.0f,1.0f},
-    			{0.0f,1.0f,1.0f},
-    			{0.0f,1.0f,1.0f},
-    			{0.0f,1.0f,1.0f}
+    		float colorsArray[] = {
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f
     		};
     		int indiciesArray[] = {
 				0,1,2,3,4,5,6,7
 	    	}; 
-    		vertices = getBufferFromArrays(vertexArray);
-    		colors = getBufferFromArrays(colorsArray);
-    		indicies = getBufferFromArrays(indiciesArray);
+    		vertices = getBufferFromArray(vertexArray);
+    		colors = getBufferFromArray(colorsArray);
+    		indicies = getBufferFromArray(indiciesArray);
+    		
+    		
+    		GL2 gl = drawable.getGL().getGL2();
+    		
+			gl.glGenBuffers( 1, bufferIds, 0 );
+    		 
+            // create vertex buffer data store without initial copy
+            gl.glBindBuffer( GL.GL_ARRAY_BUFFER, bufferIds[0] );
+            gl.glBufferData( GL.GL_ARRAY_BUFFER,
+        		BUFFER_SIZE * 2,
+	    		null,
+	    		GL2.GL_DYNAMIC_DRAW
+    		);
+            
+            gl.glBindBuffer( GL.GL_ARRAY_BUFFER, bufferIds[0] );
+            ByteBuffer bytebuffer = gl.glMapBuffer( GL.GL_ARRAY_BUFFER, GL2.GL_WRITE_ONLY );
+            FloatBuffer floatbuffer = bytebuffer.order( ByteOrder.nativeOrder() ).asFloatBuffer();
+            
+            int i=0;
+            while(i<VERTICES*VELEMENTS){
+            	// cords
+            	floatbuffer.put(vertexArray[i]); i++;
+            	floatbuffer.put(vertexArray[i]); i++;
+            	floatbuffer.put(vertexArray[i]); i++;
+
+            	i--;
+            	i--;
+            	i--;
+            	
+            	// colors
+            	floatbuffer.put(colorsArray[i]); i++;
+            	floatbuffer.put(colorsArray[i]); i++;
+            	floatbuffer.put(colorsArray[i]); i++;
+    		}
+            
+            gl.glUnmapBuffer( GL.GL_ARRAY_BUFFER );
+    		
+    		/*
+    		gl.glBindBuffer(GL.GL_ARRAY_BUFFER, bufferIds[0]);
+            gl.glBufferData(GL.GL_ARRAY_BUFFER, BUFFER_SIZE, vertices, GL.GL_STATIC_DRAW);
+
+    		gl.glBindBuffer(GL.GL_ARRAY_BUFFER, bufferIds[0]);
+            gl.glBufferData(GL.GL_ARRAY_BUFFER, BUFFER_SIZE, vertices, GL.GL_STATIC_DRAW);
+            
+    	    gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0); // unbound
+    	    */
+    	    
 		}
 
-    	private ByteBuffer getBufferFromArrays(float vertexArray[][]) {
+    	private ByteBuffer getBufferFromArray(float vertexArray[]) {
     		int i,j;
     		ByteBuffer ret = ByteBuffer.allocateDirect(BUFFER_SIZE);
-    		for(i=0;i<VERTICES;i++){
-    			for(j=0; j<VELEMENTS; j++) {
-    				ret.putFloat(vertexArray[i][j]);
-	    		}
+    		for(i=0;i<VERTICES*VELEMENTS;i++){
+				ret.putFloat(vertexArray[i]);
     		}
     		ret.rewind();
     		return ret;
     	}
-    	private ByteBuffer getBufferFromArrays(int indiciesArray[]) {
+    	private ByteBuffer getBufferFromArray(int array[]) {
     		int i;
     		ByteBuffer ret = ByteBuffer.allocateDirect(VERTICES*8);
     		for(i=0;i<VERTICES;i++){
-				ret.putFloat(indiciesArray[i]);
+				ret.putFloat(array[i]);
     		}
     		ret.rewind();
     		return ret;
@@ -304,43 +346,89 @@ public class SimpleScene implements GLEventListener {
     	
     	public void render(GLAutoDrawable drawable, float z) {
     		GL2 gl = drawable.getGL().getGL2();
-    		//gl.glViewport(arg0, arg1, arg2, arg3);
     		//gl.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT);
 
-    		gl.glMatrixMode(GL2.GL_MODELVIEW);
-    		gl.glLoadIdentity();
-    		
-    		float vertexArray[][] = {
-    			{0.0f,0.0f,0.5f},
-    			{0.0f,-0.5f,0.5f},
-    			{0.5f,-0.5f,0.5f},
-    			{0.5f,0.5f,0.5f},
-    			{0.5f,0.5f,0.5f},
-    			{0.5f,0.1f,0.5f},
-    			{0.1f,0.1f,0.5f},
-    			{0.1f,0.5f,0.5f}
+    		/*
+    		// for edeting during runtime.. 
+    		float vertexArray[] = {
+    			0.0f,0.0f,z,
+    			0.0f,-0.5f,z,
+    			0.5f,-0.5f,z,
+    			0.5f,0.5f,z,
+    			0.5f,0.5f,z,
+    			0.5f,0.1f,z,
+    			0.1f,0.1f,z,
+    			0.1f,0.5f,z
     		};
-    		float colorsArray[][] = {
-    			{0.0f,100.0f,100.0f},
-    			{0.0f,100.0f,100.0f},
-    			{0.0f,100.0f,100.0f},
-    			{0.0f,100.0f,100.0f},
-    			{0.0f,100.0f,100.0f},
-    			{0.0f,100.0f,100.0f},
-    			{0.0f,100.0f,100.0f},
-    			{0.0f,100.0f,100.0f}
+    		float colorsArray[] = {
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,0.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f,
+    			0.0f,1.0f,1.0f
     		};
-    		vertices = getBufferFromArrays(vertexArray);
-    		colors = getBufferFromArrays(colorsArray);
-    		//System.out.println("derp");
-    		// glXPointer(size, type, stride, pointer):
+    		vertices = getBufferFromArray(vertexArray);
+    		colors = getBufferFromArray(colorsArray);
     		
+		 	*/
+
+    		
+    		// needed so material for quads will be set from color map
+    		gl.glColorMaterial( GL.GL_FRONT_AND_BACK, GL2.GL_AMBIENT_AND_DIFFUSE );
+    		gl.glEnable( GL2.GL_COLOR_MATERIAL );
+    		 
+    		// draw all quads in vertex buffer
+    		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, bufferIds[0] );
+    		gl.glEnableClientState( GL2.GL_VERTEX_ARRAY );
+    		gl.glEnableClientState( GL2.GL_COLOR_ARRAY );
+    		gl.glVertexPointer( 3, GL.GL_FLOAT, 6 * Buffers.SIZEOF_FLOAT, 0 );
+    		gl.glColorPointer( 3, GL.GL_FLOAT, 6 * Buffers.SIZEOF_FLOAT, 3 * Buffers.SIZEOF_FLOAT );
+    		gl.glPolygonMode( GL.GL_FRONT, GL2.GL_FILL );
+    		gl.glDrawArrays( GL2.GL_TRIANGLES, 0, bufferIds[0] );
+    		 
+    		// disable arrays once we're done
+    		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, 0 );
+    		gl.glDisableClientState( GL2.GL_VERTEX_ARRAY );
+    		gl.glDisableClientState( GL2.GL_COLOR_ARRAY );
+    		gl.glDisable( GL2.GL_COLOR_MATERIAL );
+    		 
+    		//canvas.swapBuffers();
+    		if(true) {
+    			return;
+    		}
+    		
+    		gl.glPushMatrix();
+
+    		gl.glColorPointer(3, GL2.GL_FLOAT, 0, colors); 
     	    gl.glVertexPointer(3, GL2.GL_FLOAT, 0, vertices);
-    		gl.glColorPointer(3,GL2.GL_FLOAT, 0, colors); 
-    		gl.glDrawArrays(GL.GL_TRIANGLES, 0, 8);
-    		//gl.glDrawElements(GL2.GL_TRIANGLES,1,GL.GL_UNSIGNED_INT, indicies);
     		
-    		gl.glFlush();
+    		//gl.glTranslated(-0.5, -0.5, 0);
+    		
+    		/*
+    	    gl.glVertexPointer(3, GL2.GL_FLOAT, 0, vertices);
+    		gl.glBindBuffer(GL.GL_ARRAY_BUFFER, bufferIds[1]);
+    		gl.glColorPointer(3,GL2.GL_FLOAT, 0, colors); 
+    		//gl.glDrawArrays(GL.GL_TRIANGLES, 0, 1);
+
+    	    gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0); // unbound
+    	    */
+
+    		//gl.glEnableClientState(GL2.GL_NORMAL_ARRAY);
+    		gl.glEnableClientState(GL2.GL_VERTEX_ARRAY);
+    		gl.glEnableClientState(GL2.GL_COLOR_ARRAY);
+    		
+    		gl.glDrawElements(GL2.GL_TRIANGLES,1,GL.GL_UNSIGNED_INT, indicies);
+    		//gl.glFlush();
+
+    		gl.glDisableClientState(GL2.GL_COLOR_ARRAY);
+    		gl.glDisableClientState(GL2.GL_VERTEX_ARRAY);
+    		//gl.glDisableClientState(GL2.GL_NORMAL_ARRAY);
+    		gl.glPopMatrix();
+    		
+    		//gl.glViewport(0, 0, 1000, 1000);
     	}
     }
     
@@ -364,19 +452,19 @@ public class SimpleScene implements GLEventListener {
     	myObjects.add(new Square());
     	myObjects.add(new SquareBasedPyramid());
     	myObjects.add(new Star());
-    	myObjects.add(new MoreComplexPrimitive());
+    	myObjects.add(new MoreComplexPrimitive(drawable));
     	
     	
 		GL2 gl = drawable.getGL().getGL2();
 		if(!gl.isExtensionAvailable("GL_ARB_vertex_buffer_object")){
 			 System.out.println("Error: VBO support is missing");
 		}
-		gl.glMatrixMode(GL2.GL_PROJECTION); 
+		gl.glMatrixMode(GL2.GL_PROJECTION);
 		gl.glLoadIdentity();
 		gl.glEnable(GL.GL_DEPTH_TEST);
 		gl.glEnableClientState(GL2.GL_COLOR_ARRAY);
 		gl.glEnableClientState(GL2.GL_VERTEX_ARRAY);
-		gl.glClearColor(0f, 0f, 0f ,0f);
+		gl.glClearColor(0,0,0.25f,1);
 		gl.glColor3f(1f, 1f, 1f);
 	}
 
