@@ -1,24 +1,32 @@
-
 import java.awt.Frame;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.Vector;
 
 import javax.media.opengl.*;
 import javax.media.opengl.awt.GLCanvas;
 import javax.media.opengl.awt.GLJPanel;
+import javax.media.opengl.glu.GLU;
 
 import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.util.*;
 
-public class SimpleScene implements GLEventListener {
+public class SimpleScene implements GLEventListener, MouseListener, KeyListener, MouseMotionListener {
 	
-	Vector<MyObject> myObjects;
+	private Vector<MyObject> myObjects;
+	private GLU glu = new GLU();
 	
     public static void main(String[] args) {
         GLProfile glp = GLProfile.getDefault();
@@ -38,8 +46,12 @@ public class SimpleScene implements GLEventListener {
                 System.exit(0);
             }
         });
+        SimpleScene app = new SimpleScene();
         
-        canvas.addGLEventListener(new SimpleScene());
+        canvas.addGLEventListener(app);
+        canvas.addMouseListener(app);
+        canvas.addKeyListener(app);
+        canvas.addMouseMotionListener(app);
         
         FPSAnimator animator = new FPSAnimator(canvas, 60);
         //animator.add(canvas);
@@ -50,8 +62,115 @@ public class SimpleScene implements GLEventListener {
     	
 	}
     
+    class ObjectsData {
+    	
+    	Vector<MyObject> myObjects;
+    	
+    	final public String[] validObjects = {
+			"star",
+			"pyramid",
+			"square"
+    	};
+    	
+    	public ObjectsData() {
+    		myObjects = new Vector<MyObject>();
+		}
+
+    	public void addObject(MyObject o) {
+    		myObjects.add(o);
+    	}
+    	public boolean addObject(String s) {
+    		String[] objectArray;
+    		float x,y,z,r,color1,color2,color3;
+    		boolean success = true;
+			MyObject myObject = null;
+			
+    		objectArray = s.split(",");
+    		
+			if(objectArray.length >= 8) {
+    			if(Arrays.asList(validObjects).contains(objectArray[0])) {
+    				x = Float.valueOf(objectArray[1]).floatValue();
+    				y = Float.valueOf(objectArray[2]).floatValue();
+    				z = Float.valueOf(objectArray[3]).floatValue();
+    				r = Float.valueOf(objectArray[4]).floatValue();
+    				color1 = Float.valueOf(objectArray[5]).floatValue();
+    				color2 = Float.valueOf(objectArray[6]).floatValue();
+    				color3 = Float.valueOf(objectArray[7]).floatValue();
+    				
+    				switch (objectArray[0]) {
+					case "star":
+						myObject = new Star();
+						break;
+						
+					case "pyramid":
+						myObject = new SquareBasedPyramid();
+						break;
+						
+					case "square":
+						myObject = new Square();
+						break;
+
+					default:
+						success = false;
+						break;
+					}
+					myObject.update(x, y, z, r, color1, color2, color3);
+					addObject(myObject);
+    			} else {
+    				success = false;
+    			}
+			}
+    		return success;
+    	}
+    	/**
+    	 * 
+    	 * @param s  objectType,x,y,z,radie,color1,color2,color3;
+    	 * @return
+    	 */
+    	public boolean addObjects(String s) {
+    		boolean success = true;
+    		String[] strings = s.split(";");
+    		String[] objectArray;
+    		for (String objectString : strings){
+    			success = success | addObject(objectString);
+    		}
+    		return success;
+    	}
+    	
+    	public MyObject getObject(float x,float y,float z) {
+    		MyObject ret = null;
+    		return ret;
+    	}
+    	
+    	@Override
+    	public String toString() {
+    		String ret = "";
+    		for (MyObject o : myObjects){
+    			ret = ret+o.toString()+";";
+    		}
+    		return ret;
+    	}
+    	
+    }
+    
     abstract class MyObject {
-    	public abstract void render(GLAutoDrawable drawable, float z);
+    	protected float x,y,z,r,color1,color2,color3;
+    	
+        public MyObject() {
+		}
+    	
+        public void update(float x, float y, float z, float r, float color1, float color2, float color3) {
+        	this.x=x;
+        	this.y=y;
+        	this.z=z;
+        	this.r=r;
+        	this.color1=color1;
+        	this.color2=color2;
+        	this.color3=color3;
+        }
+        
+    	public abstract void render(GLAutoDrawable drawable);
+    	
     	protected float generateRandom(float min, float max) {
     		Random r = new Random();
     		return r.nextFloat() * (max - min) + min;
@@ -60,49 +179,58 @@ public class SimpleScene implements GLEventListener {
     		Random r = new Random();
     		return r.nextInt(max-min)+min;
     	}
+    	@Override
+    	public String toString() {
+    		String ret = "";
+    		if(this instanceof Star) {
+    			ret = "star";
+    		} else if(this instanceof Square) {
+    			ret = "square";
+    		} else if(this instanceof SquareBasedPyramid) {
+    			ret = "pyramid";
+    		} else {
+    			return "";
+    		}
+    		return ret+","+x+","+y+","+z+","+r+","+color1+","+color2+","+color3+";";
+    	}
     }
     
     class Square extends MyObject {
-    	private float d = 0.1f;
-    	private float x = 0.0f;
-    	private float y = 0.0f;
     	
-    	public Square(float x, float y, float d) {
+    	public Square(float x, float y, float r) {
     		this.x = x;
     		this.y = y;
-    		this.d = d;
-    		System.out.println("Square: "+x+", "+y+", "+d);
+    		this.r = r;
+    		System.out.println("Square: "+x+", "+y+", "+r);
 		}
     	public Square() {
     		x = generateRandom(-0.5f, 0.5f);
     		y = generateRandom(-0.5f, 0.5f);
-    		d = generateRandom(0.1f, 0.5f);
-    		System.out.println("Square: "+x+", "+y+", "+d);
+    		r = generateRandom(0.2f, 0.5f);
+    		System.out.println("Square: "+x+", "+y+", "+r);
 		}
     	
-    	public void render(GLAutoDrawable drawable, float z) {
+    	public void render(GLAutoDrawable drawable) {
     		GL2 gl = drawable.getGL().getGL2();
-    	    
+    	    float d=r*2;
     		gl.glPushMatrix();
+    		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
 
     		gl.glBegin(GL2.GL_QUADS);
-    		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
     		gl.glColor3f(0.0f, 0.0f, 1.0f);
-    		gl.glPopAttrib();
     		
     		gl.glVertex3f(x, y, z);
     		gl.glVertex3f(x, y-d, z);
     		gl.glVertex3f(x+d, y-d, z);
     		gl.glVertex3f(x+d, y, z);
-    		
-    		gl.glPopMatrix();
     		gl.glEnd();
+
+    		gl.glPopAttrib();
+    		gl.glPopMatrix();
     	}
     }
     
     class SquareBasedPyramid extends MyObject {
-    	private float x;
-    	private float y;
     	private int levels;
     	private float squareDiameter;
     	public SquareBasedPyramid(float x, float y, int levels) {
@@ -118,16 +246,15 @@ public class SimpleScene implements GLEventListener {
     		squareDiameter = generateRandom(0.01f, 0.06f);
 		}
     	
-		public void render(GLAutoDrawable drawable, float z) {
+		public void render(GLAutoDrawable drawable) {
 			float d = squareDiameter;
     		GL2 gl = drawable.getGL().getGL2();
     		gl.glPushMatrix();
+    		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
     		gl.glBegin(GL2.GL_LINE_LOOP);
     		
 
-    		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
     		gl.glColor3f(1.0f, 0.0f, 1.0f);
-    		gl.glPopAttrib();
     		
     		gl.glVertex3f(x, y, z); // start
     		for(int i=1; i<=levels; i++) {
@@ -141,16 +268,14 @@ public class SimpleScene implements GLEventListener {
         		j++;
     		}
     		gl.glVertex3f(x+d*(levels*2-1), y, z); // end
-    		gl.glPopMatrix();
     		gl.glEnd();
+    		gl.glPopAttrib();
+    		gl.glPopMatrix();
 		}
     }
     
     class Star extends MyObject {
 
-    	private float x;
-    	private float y;
-    	private float r;
     	public Star(float x, float y, float r) {
     		if(r == 0.0f){
         		x = generateRandom(-0.5f, 0.5f);
@@ -167,269 +292,33 @@ public class SimpleScene implements GLEventListener {
     		this.r = generateRandom(0.1f, 0.5f);
 		}
     	
-		public void render(GLAutoDrawable drawable, float z) {
+		public void render(GLAutoDrawable drawable) {
 			GL2 gl = drawable.getGL().getGL2();
     		
     		
     		gl.glPushMatrix();
+    		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
     		gl.glBegin(GL2.GL_TRIANGLES);
     		
-    		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
-    		gl.glColor3f(0.0f, 1.0f, z);
-    		gl.glPopAttrib();
+    		gl.glColor3f(0.0f, 1.0f, 0.0f);
     		
     		gl.glVertex3f(x, y+r*1.0f, z);
     		gl.glVertex3f(x-r*0.8f, y-r*0.5f, z);
     		gl.glVertex3f(x+r*0.8f, y-r*0.5f, z);
     		gl.glEnd();
-    		
-    		
-    		gl.glPushMatrix();
+
     		gl.glBegin(GL2.GL_TRIANGLES);
-    		
-    		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
-    		gl.glColor3f(0.0f, 1.0f, z);
-    		gl.glPopAttrib();
+			
+    		gl.glColor3f(0.0f, 1.0f, 0.0f);
     		
     		gl.glVertex3f(x, y-r*1.0f, z);
     		gl.glVertex3f(x+r*0.8f, y+r*0.5f, z);
     		gl.glVertex3f(x-r*0.8f, y+r*0.5f, z);
     		gl.glEnd();
-    		
-    		gl.glPopMatrix();
-		}
-		public void renderPolygon(GLAutoDrawable drawable, float z) {
-    		GL2 gl = drawable.getGL().getGL2();
-    		
-    		gl.glPushMatrix();
-    		gl.glBegin(GL2.GL_POLYGON); 
-    		/*
-    		    .9
-    		   .10 .8
-    		1.        7.
-    		  2. 4. 6.  
-    		 3.     5.
-    		 
-    		 */
 
-    		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
-    		gl.glColor3f(0.0f, 1.0f, 0.0f);
     		gl.glPopAttrib();
-    		r=0.8f;
-    		x=0.0f;
-    		y=0.0f;
-    		
-    		gl.glVertex3f(x-r, y, z);
-    		gl.glVertex3f(x-r*0.3f, y-r*0.2f, z);
-    		gl.glVertex3f(x-r*0.6f, y-r*0.8f, z);
-    		gl.glVertex3f(x, y-r*0.2f, z);
-    		gl.glVertex3f(x+r*0.6f, y-r*0.8f, z);
-    		gl.glVertex3f(x+r*0.3f, y-r*0.2f, z);
-    		gl.glVertex3f(x+r, y, z);
-    		gl.glVertex3f(x+r*0.2f, y+r*0.3f, z);
-    		gl.glVertex3f(x, y+r*1.0f, z);
-    		gl.glVertex3f(x-r*0.2f, y+r*0.3f, z);
-    		gl.glEnd();
     		gl.glPopMatrix();
-    		//System.out.println(x+","+y+","+r);
 		}
-    	
-    }
-
-    class MoreComplexPrimitive extends MyObject {
-    	private int indiciesArray[] = {
-			0,1,2,3,4,5,6,7
-    	}; 
-		final int VERTICES=8, VELEMENTS=3, 
-				BUFFER_SIZE=VERTICES*VELEMENTS*8;
-		ByteBuffer vertices = ByteBuffer.allocateDirect(BUFFER_SIZE);
-		ByteBuffer colors = ByteBuffer.allocateDirect(BUFFER_SIZE);
-		ByteBuffer indicies = ByteBuffer.allocateDirect(VERTICES*8);
-		
-		private int[] bufferIds = new int[2];
-    	
-    	public MoreComplexPrimitive(GLAutoDrawable drawable) {
-    		float vertexArray[] = {
-    			0.0f,0.0f,0.5f,
-    			0.0f,0.0f,0.5f,
-    			0.0f,0.0f,0.5f,
-    			0.0f,0.0f,0.5f,
-    			0.0f,0.0f,0.5f,
-    			0.0f,0.0f,0.5f,
-    			0.0f,0.0f,0.5f,
-    			0.0f,0.0f,0.5f
-    		};
-    		float colorsArray[] = {
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f
-    		};
-    		int indiciesArray[] = {
-				0,1,2,3,4,5,6,7
-	    	}; 
-    		vertices = getBufferFromArray(vertexArray);
-    		colors = getBufferFromArray(colorsArray);
-    		indicies = getBufferFromArray(indiciesArray);
-    		
-    		
-    		GL2 gl = drawable.getGL().getGL2();
-    		
-			gl.glGenBuffers( 1, bufferIds, 0 );
-    		 
-            // create vertex buffer data store without initial copy
-            gl.glBindBuffer( GL.GL_ARRAY_BUFFER, bufferIds[0] );
-            gl.glBufferData( GL.GL_ARRAY_BUFFER,
-        		BUFFER_SIZE * 2,
-	    		null,
-	    		GL2.GL_DYNAMIC_DRAW
-    		);
-            
-            gl.glBindBuffer( GL.GL_ARRAY_BUFFER, bufferIds[0] );
-            ByteBuffer bytebuffer = gl.glMapBuffer( GL.GL_ARRAY_BUFFER, GL2.GL_WRITE_ONLY );
-            FloatBuffer floatbuffer = bytebuffer.order( ByteOrder.nativeOrder() ).asFloatBuffer();
-            
-            int i=0;
-            while(i<VERTICES*VELEMENTS){
-            	// cords
-            	floatbuffer.put(vertexArray[i]); i++;
-            	floatbuffer.put(vertexArray[i]); i++;
-            	floatbuffer.put(vertexArray[i]); i++;
-
-            	i--;
-            	i--;
-            	i--;
-            	
-            	// colors
-            	floatbuffer.put(colorsArray[i]); i++;
-            	floatbuffer.put(colorsArray[i]); i++;
-            	floatbuffer.put(colorsArray[i]); i++;
-    		}
-            
-            gl.glUnmapBuffer( GL.GL_ARRAY_BUFFER );
-    		
-    		/*
-    		gl.glBindBuffer(GL.GL_ARRAY_BUFFER, bufferIds[0]);
-            gl.glBufferData(GL.GL_ARRAY_BUFFER, BUFFER_SIZE, vertices, GL.GL_STATIC_DRAW);
-
-    		gl.glBindBuffer(GL.GL_ARRAY_BUFFER, bufferIds[0]);
-            gl.glBufferData(GL.GL_ARRAY_BUFFER, BUFFER_SIZE, vertices, GL.GL_STATIC_DRAW);
-            
-    	    gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0); // unbound
-    	    */
-    	    
-		}
-
-    	private ByteBuffer getBufferFromArray(float vertexArray[]) {
-    		int i,j;
-    		ByteBuffer ret = ByteBuffer.allocateDirect(BUFFER_SIZE);
-    		for(i=0;i<VERTICES*VELEMENTS;i++){
-				ret.putFloat(vertexArray[i]);
-    		}
-    		ret.rewind();
-    		return ret;
-    	}
-    	private ByteBuffer getBufferFromArray(int array[]) {
-    		int i;
-    		ByteBuffer ret = ByteBuffer.allocateDirect(VERTICES*8);
-    		for(i=0;i<VERTICES;i++){
-				ret.putFloat(array[i]);
-    		}
-    		ret.rewind();
-    		return ret;
-    	}
-    	
-    	
-    	public void render(GLAutoDrawable drawable, float z) {
-    		GL2 gl = drawable.getGL().getGL2();
-    		//gl.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT);
-
-    		/*
-    		// for edeting during runtime.. 
-    		float vertexArray[] = {
-    			0.0f,0.0f,z,
-    			0.0f,-0.5f,z,
-    			0.5f,-0.5f,z,
-    			0.5f,0.5f,z,
-    			0.5f,0.5f,z,
-    			0.5f,0.1f,z,
-    			0.1f,0.1f,z,
-    			0.1f,0.5f,z
-    		};
-    		float colorsArray[] = {
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,0.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f,
-    			0.0f,1.0f,1.0f
-    		};
-    		vertices = getBufferFromArray(vertexArray);
-    		colors = getBufferFromArray(colorsArray);
-    		
-		 	*/
-
-    		
-    		// needed so material for quads will be set from color map
-    		gl.glColorMaterial( GL.GL_FRONT_AND_BACK, GL2.GL_AMBIENT_AND_DIFFUSE );
-    		gl.glEnable( GL2.GL_COLOR_MATERIAL );
-    		 
-    		// draw all quads in vertex buffer
-    		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, bufferIds[0] );
-    		gl.glEnableClientState( GL2.GL_VERTEX_ARRAY );
-    		gl.glEnableClientState( GL2.GL_COLOR_ARRAY );
-    		gl.glVertexPointer( 3, GL.GL_FLOAT, 6 * Buffers.SIZEOF_FLOAT, 0 );
-    		gl.glColorPointer( 3, GL.GL_FLOAT, 6 * Buffers.SIZEOF_FLOAT, 3 * Buffers.SIZEOF_FLOAT );
-    		gl.glPolygonMode( GL.GL_FRONT, GL2.GL_FILL );
-    		gl.glDrawArrays( GL2.GL_TRIANGLES, 0, bufferIds[0] );
-    		 
-    		// disable arrays once we're done
-    		gl.glBindBuffer( GL.GL_ARRAY_BUFFER, 0 );
-    		gl.glDisableClientState( GL2.GL_VERTEX_ARRAY );
-    		gl.glDisableClientState( GL2.GL_COLOR_ARRAY );
-    		gl.glDisable( GL2.GL_COLOR_MATERIAL );
-    		 
-    		//canvas.swapBuffers();
-    		if(true) {
-    			return;
-    		}
-    		
-    		gl.glPushMatrix();
-
-    		gl.glColorPointer(3, GL2.GL_FLOAT, 0, colors); 
-    	    gl.glVertexPointer(3, GL2.GL_FLOAT, 0, vertices);
-    		
-    		//gl.glTranslated(-0.5, -0.5, 0);
-    		
-    		/*
-    	    gl.glVertexPointer(3, GL2.GL_FLOAT, 0, vertices);
-    		gl.glBindBuffer(GL.GL_ARRAY_BUFFER, bufferIds[1]);
-    		gl.glColorPointer(3,GL2.GL_FLOAT, 0, colors); 
-    		//gl.glDrawArrays(GL.GL_TRIANGLES, 0, 1);
-
-    	    gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0); // unbound
-    	    */
-
-    		//gl.glEnableClientState(GL2.GL_NORMAL_ARRAY);
-    		gl.glEnableClientState(GL2.GL_VERTEX_ARRAY);
-    		gl.glEnableClientState(GL2.GL_COLOR_ARRAY);
-    		
-    		gl.glDrawElements(GL2.GL_TRIANGLES,1,GL.GL_UNSIGNED_INT, indicies);
-    		//gl.glFlush();
-
-    		gl.glDisableClientState(GL2.GL_COLOR_ARRAY);
-    		gl.glDisableClientState(GL2.GL_VERTEX_ARRAY);
-    		//gl.glDisableClientState(GL2.GL_NORMAL_ARRAY);
-    		gl.glPopMatrix();
-    		
-    		//gl.glViewport(0, 0, 1000, 1000);
-    	}
     }
     
 	@Override
@@ -452,20 +341,13 @@ public class SimpleScene implements GLEventListener {
     	myObjects.add(new Square());
     	myObjects.add(new SquareBasedPyramid());
     	myObjects.add(new Star());
-    	myObjects.add(new MoreComplexPrimitive(drawable));
     	
     	
 		GL2 gl = drawable.getGL().getGL2();
-		if(!gl.isExtensionAvailable("GL_ARB_vertex_buffer_object")){
-			 System.out.println("Error: VBO support is missing");
-		}
 		gl.glMatrixMode(GL2.GL_PROJECTION);
 		gl.glLoadIdentity();
-		gl.glEnable(GL.GL_DEPTH_TEST);
-		gl.glEnableClientState(GL2.GL_COLOR_ARRAY);
-		gl.glEnableClientState(GL2.GL_VERTEX_ARRAY);
 		gl.glClearColor(0,0,0.25f,1);
-		gl.glColor3f(1f, 1f, 1f);
+		//gl.glColor3f(1f, 1f, 1f);
 	}
 
 	@Override
@@ -485,12 +367,71 @@ public class SimpleScene implements GLEventListener {
 	    
         float z = 0.0f;
         for (MyObject o : myObjects){
-        	o.render(drawable, z);
-        	z = z+0.1f;
+        	o.render(drawable);
+        	//z = z+0.1f;
         }
 	}
 	
 	private void update() {
 	    // nothing to update yet
+	}
+
+	@Override
+	public void mouseClicked(MouseEvent e) {
+		System.out.println("mouseClicked");
+	}
+
+	@Override
+	public void mouseEntered(MouseEvent e) {
+		
+	}
+
+	@Override
+	public void mouseExited(MouseEvent e) {
+		
+	}
+
+	@Override
+	public void mousePressed(MouseEvent e) {
+		System.out.println("mousePressed");
+	}
+
+	@Override
+	public void mouseReleased(MouseEvent e) {
+		System.out.println("mouseReleased");
+	}
+
+	@Override
+	public void keyPressed(KeyEvent e) {
+		
+	}
+
+	@Override
+	public void keyReleased(KeyEvent e) {
+		switch (e.getKeyChar()) {
+	      case KeyEvent.VK_ESCAPE:
+	        System.exit(0);
+	        break;
+
+	      default:
+	        break;
+	    }
+	}
+
+	@Override
+	public void keyTyped(KeyEvent e) {
+		System.out.println("keyTyped");
+		
+	}
+
+	@Override
+	public void mouseDragged(MouseEvent arg0) {
+		System.out.println("mouseDragged");
+		
+	}
+
+	@Override
+	public void mouseMoved(MouseEvent arg0) {
+		
 	}
 }
