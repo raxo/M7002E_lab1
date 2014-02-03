@@ -211,6 +211,27 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     		ret = myObjects.get(id);
     		return ret;
     	}
+
+    	public MyObject getNextObject(MyObject o) {
+    		int id = myObjects.indexOf(o);
+    		if(0 <= id && id+1 <= myObjects.size()-1) {
+    			return myObjects.get(id+1);
+    		}
+    		if(myObjects.size() == 0) {
+    			return null;
+    		}
+			return myObjects.get(0);
+    	}
+    	public MyObject getPrevObject(MyObject o) {
+    		int id = myObjects.indexOf(o);
+    		if(0 <= id-1 && id <= myObjects.size()-1) {
+    			return myObjects.get(id-1);
+    		}
+    		if(myObjects.size() == 0) {
+    			return null;
+    		}
+			return myObjects.get(0);
+    	}
     	
     	@Override
     	public String toString() {
@@ -704,28 +725,7 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 
 	@Override
 	public void mouseReleased(MouseEvent e) {
-		if(selectedObject != null && KeysCurrentlyPressed.move) {
-			selectedObject.x = (float) joglPoint[0];
-			selectedObject.y = (float) joglPoint[1];
-			//selectedObject.z = (float) joglPoint[2];
-		} else if(selectedObject != null && KeysCurrentlyPressed.resize) {
-			if((float) joglPoint[0] < selectedObject.x) {
-				selectedObject.r = selectedObject.x - (float) joglPoint[0];
-			} else {
-				selectedObject.r = (float) joglPoint[0] - selectedObject.x;
-			}
-		} else if(selectedObject != null && KeysCurrentlyPressed.rotate) {
-			if((float) joglPoint[0] < selectedObject.x) {
-				selectedObject.rotation += (selectedObject.x - (float) joglPoint[0])*360;
-			} else {
-				selectedObject.rotation -= ((float) joglPoint[0] - selectedObject.x)*360;
-			}
-			if(selectedObject.rotation > 360f) {
-				selectedObject.rotation -= 360f;
-			} else if(selectedObject.rotation < 360f) {
-				selectedObject.rotation += 360f;
-			}
-		} else if(selectedObject == null && (
+		if(selectedObject == null && (
 				KeysCurrentlyPressed.square || 
 				KeysCurrentlyPressed.star || 
 				KeysCurrentlyPressed.sphare || 
@@ -748,6 +748,7 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 			//o.z = (float) joglPoint[2];
 			System.out.println(o);
 			data.addObject(o);
+			selectedObject = o;
 		}
 		
 		
@@ -820,12 +821,15 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
         	KeysCurrentlyPressed.move = false;
         } else if(e.getKeyCode() == KeyEvent.VK_C) {
         	KeysCurrentlyPressed.color = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_RIGHT) {
+        	selectedObject = data.getNextObject(selectedObject);
+        } else if(e.getKeyCode() == KeyEvent.VK_LEFT) {
+        	selectedObject = data.getPrevObject(selectedObject);
         }
 	}
 
 	@Override
 	public void keyTyped(KeyEvent e) {
-		
 		
 	}
 
@@ -834,9 +838,32 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 		mouseX = e.getX();
 		mouseY = e.getY();
 		command = Command.TRANSLATE_MOUSE;
+		if(selectedObject != null && KeysCurrentlyPressed.move) {
+			selectedObject.x = (float) joglPoint[0];
+			selectedObject.y = (float) joglPoint[1];
+			//selectedObject.z = (float) joglPoint[2];
+		} else if(selectedObject != null && KeysCurrentlyPressed.resize) {
+			if((float) joglPoint[0] < selectedObject.x) {
+				selectedObject.r = selectedObject.x - (float) joglPoint[0];
+			} else {
+				selectedObject.r = (float) joglPoint[0] - selectedObject.x;
+			}
+		} else if(selectedObject != null && KeysCurrentlyPressed.rotate) {
+			if((float) joglPoint[0] < selectedObject.x) {
+				selectedObject.rotation += (selectedObject.x - (float) joglPoint[0])*360*0.1f;
+			} else {
+				selectedObject.rotation -= ((float) joglPoint[0] - selectedObject.x)*360*0.1f;
+			}
+			if(selectedObject.rotation > 360f) {
+				selectedObject.rotation -= 360f;
+			} else if(selectedObject.rotation < 360f) {
+				selectedObject.rotation += 360f;
+			}
+		}
 	}
 
 	@Override
 	public void mouseMoved(MouseEvent arg0) {
+		
 	}
 }
