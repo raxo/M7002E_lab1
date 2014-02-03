@@ -27,6 +27,7 @@ import javax.media.opengl.*;
 import javax.media.opengl.awt.GLCanvas;
 import javax.media.opengl.awt.GLJPanel;
 import javax.media.opengl.fixedfunc.GLLightingFunc;
+import javax.media.opengl.fixedfunc.GLPointerFunc;
 import javax.media.opengl.glu.GLU;
 
 import com.jogamp.common.nio.Buffers;
@@ -36,22 +37,43 @@ import com.jogamp.opengl.util.gl2.GLUT;
 public class SimpleScene implements GLEventListener, MouseListener, KeyListener, MouseMotionListener {
 	
 	private ObjectsData data;
+	private MyObject selectedObject = null;
 	private GLU glu = new GLU();
 	private Command command = Command.UPDATE;
 	static final int UPDATE = 0, SELECT = 1;
 	int mouseX = 0, mouseY = 0;
+	float mouseZ = 0;
+	double[] joglPoint = {0,0,0};
+	
+	KeyboardBuffer KeysCurrentlyPressed = new KeyboardBuffer();
+	
+	class KeyboardBuffer {
+		public boolean square = false;
+		public boolean pyramid = false;
+		public boolean sphare = false;
+		public boolean star = false;
+		public boolean light = false;
+		public boolean rotate = false;
+		public boolean move = false;
+		public boolean resize = false;
+		public boolean color = false;
+	}
 	
 	public enum Command {
-		UPDATE, SELECT
+		UPDATE, SELECT, MOUSE_PRESSED, TRANSLATE_MOUSE
 	}
 	
     public static void main(String[] args) {
+        new SimpleScene();
+    }
+    
+    public SimpleScene() {
         GLProfile glp = GLProfile.getDefault();
         GLCapabilities caps = new GLCapabilities(glp);
         GLCanvas canvas = new GLCanvas(caps);
 
         Frame frame = new Frame("AWT Window Test");
-        frame.setSize(400, 400);
+        frame.setSize(400,400);
         frame.add(canvas);
         frame.setVisible(true);
         
@@ -63,26 +85,20 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
                 System.exit(0);
             }
         });
-        SimpleScene app = new SimpleScene();
         
-        canvas.addGLEventListener(app);
-        canvas.addMouseListener(app);
-        canvas.addKeyListener(app);
-        canvas.addMouseMotionListener(app);
+        canvas.addGLEventListener(this);
+        canvas.addMouseListener(this);
+        canvas.addKeyListener(this);
+        canvas.addMouseMotionListener(this);
         
         FPSAnimator animator = new FPSAnimator(canvas, 60);
         //animator.add(canvas);
         animator.start();
-    }
-    
-    public SimpleScene() {
-    	
 	}
     
     class ObjectsData implements ClipboardOwner  {
     	
     	private Vector<MyObject> myObjects;
-    	private GL2 gl;
         private GLU glu;
     	
     	final public String[] validObjects = {
@@ -93,9 +109,8 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 			"sphere"
     	};
     	
-    	public ObjectsData(GL2 gl, GLU glu) {
+    	public ObjectsData(GLU glu) {
     		myObjects = new Vector<MyObject>();
-            this.gl = gl;
             this.glu = glu;
 		}
 
@@ -104,13 +119,13 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     	}
     	public boolean addObject(String s) {
     		String[] objectArray;
-    		float x,y,z,r,color1,color2,color3;
+    		float x,y,z,r,color1,color2,color3, rotation;
     		boolean success = true;
 			MyObject myObject = null;
 			
     		objectArray = s.split(",");
     		
-			if(objectArray.length >= 8) {
+			if(objectArray.length >= 9) {
     			if(Arrays.asList(validObjects).contains(objectArray[0])) {
     				x = Float.valueOf(objectArray[1]).floatValue();
     				y = Float.valueOf(objectArray[2]).floatValue();
@@ -119,34 +134,35 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     				color1 = Float.valueOf(objectArray[5]).floatValue();
     				color2 = Float.valueOf(objectArray[6]).floatValue();
     				color3 = Float.valueOf(objectArray[7]).floatValue();
+    				rotation = Float.valueOf(objectArray[8]).floatValue();
     				
     				switch (objectArray[0]) {
 					case "star":
-						myObject = new Star(gl, glu);
+						myObject = new Star(glu);
 						break;
 						
 					case "pyramid":
-						myObject = new SquareBasedPyramid(gl, glu);
+						myObject = new SquareBasedPyramid(glu);
 						break;
 
 					case "square":
-						myObject = new Square(gl, glu);
+						myObject = new Square(glu);
 						break;
 						
 					case "light":
-						myObject = new LightSource(gl, glu);
+						myObject = new LightSource(glu);
 						break;
 						
 					case "sphere":
-						myObject = new Sphere(gl, glu);
+						myObject = new Sphere(glu);
 						break;
 
 					default:
-						System.err.println("parsed not supported object: \""+objectArray[0]+"\"");
+						System.out.println("parsed not supported object: \""+objectArray[0]+"\"");
 						success = false;
 						break;
 					}
-					myObject.update(x, y, z, r, color1, color2, color3);
+					myObject.update(x, y, z, r, color1, color2, color3, rotation);
 					addObject(myObject);
     			} else {
     				success = false;
@@ -170,6 +186,13 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     	public void deleteAllObjects() {
     		myObjects.clear();
     	}
+    	public void deleteObject(MyObject o) {
+    		int i = myObjects.indexOf(o);
+    		if(i == -1) {
+    			return;
+    		}
+    		myObjects.remove(i);
+    	}
     	
     	public void render(GLAutoDrawable drawable) {
     		for (MyObject o : myObjects){
@@ -177,8 +200,15 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     		}
     	}
     	
-    	public MyObject getObject(float x,float y,float z) {
+    	public MyObject getObject(int id) {
     		MyObject ret = null;
+    		if(id < 0) {
+    			return ret;
+    		}
+    		if(id >= myObjects.size()) {
+    			return ret;
+    		}
+    		ret = myObjects.get(id);
     		return ret;
     	}
     	
@@ -192,7 +222,9 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     	}
     	
     	public void saveData() {
-    		String data = this.toString();
+    		saveData(this.toString());
+    	}
+    	public void saveData(String data) {
     		StringSelection stringSelection = new StringSelection(data);
     	    Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
     	    clipboard.setContents(stringSelection, this);
@@ -225,16 +257,14 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     
     //jogamp.org/jogl-demos/src/demos/misc/Picking.java 
     abstract class MyObject {
-    	protected float x,y,z,r,color1,color2,color3;
+    	public float x,y,z,r,color1,color2,color3, rotation;
     	private GLU glu;
-    	private GL2 gl;
     	
-        public MyObject(GL2 gl, GLU glu) {
-        	this.gl = gl;
+        public MyObject(GLU glu) {
             this.glu = glu;
 		}
     	
-        public void update(float x, float y, float z, float r, float color1, float color2, float color3) {
+        public void update(float x, float y, float z, float r, float color1, float color2, float color3, float rotation) {
         	this.x=x;
         	this.y=y;
         	this.z=z;
@@ -242,12 +272,15 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
         	this.color1=color1;
         	this.color2=color2;
         	this.color3=color3;
+        	this.rotation = rotation;
         }
         
     	public void render(GLAutoDrawable drawable, int id) {
+    		GL2 gl = drawable.getGL().getGL2();
+    		id++;
     		gl.glPushName(id);
     		render(drawable);
-    		//gl.glPopName();
+    		gl.glPopName();
     	}
         
     	protected abstract void render(GLAutoDrawable drawable);
@@ -276,17 +309,17 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     		} else {
     			return "";
     		}
-    		return ret+","+x+","+y+","+z+","+r+","+color1+","+color2+","+color3+"";
+    		return ret+","+x+","+y+","+z+","+r+","+color1+","+color2+","+color3+""+","+rotation+"";
     	}
     }
     
     class Square extends MyObject {
     	
-    	public Square(GL2 gl, GLU glu) {
-    		super(gl, glu);
-    		x = generateRandom(-0.5f, 0.5f);
-    		y = generateRandom(-0.5f, 0.5f);
-    		r = generateRandom(0.2f, 0.5f);
+    	public Square(GLU glu) {
+    		super(glu);
+    		x = generateRandom(0.2f, 0.5f);
+    		y = generateRandom(0.2f, 0.8f);
+    		r = generateRandom(0.2f, 0.3f);
 		}
     	
     	public void render(GLAutoDrawable drawable) {
@@ -294,12 +327,13 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
             float[] ambiColor = {0.0f, 0.0f, 1.0f, 1f};
             float[] specColor = {0.0f, 0.0f, 1.0f, 1f};
             float[] diffColor = {0.0f, 0.0f, 1.0f, 1f};
-    	    float d=r*2;
     	    
     		gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
 
     		gl.glTranslatef(x,y,z);
+    		gl.glRotatef(rotation,0.0f,0.0f,1.0f);
+    		gl.glTranslatef(0f,0f,0f);
     		
     		gl.glBegin(GL2.GL_QUADS);
 
@@ -309,10 +343,10 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 
     		gl.glColor3f(0.0f, 0.0f, 1.0f);
     		
-    		gl.glVertex3f(0, 0, 0);
-    		gl.glVertex3f(0, -d, 0);
-    		gl.glVertex3f(d, -d, 0);
-    		gl.glVertex3f(d, 0,0);
+    		gl.glVertex3f(-r, r, z);
+    		gl.glVertex3f(-r, -r, z);
+    		gl.glVertex3f(r, -r, z);
+    		gl.glVertex3f(r, r, z);
     		gl.glEnd();
 
     		gl.glPopAttrib();
@@ -324,16 +358,17 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     	private int levels;
     	private float squareDiameter;
     	
-    	public SquareBasedPyramid(GL2 gl, GLU glu) {
-    		super(gl, glu);
+    	public SquareBasedPyramid(GLU glu) {
+    		super(glu);
     		x = generateRandom(0.0f, 0.4f);
     		y = generateRandom(0.0f, 0.4f);
+    		r = generateRandom(0.3f, 0.6f);
     		levels = 10;
-    		squareDiameter = 0.02f;
+    		squareDiameter = 0.1f;
 		}
     	
 		public void render(GLAutoDrawable drawable) {
-			float d = squareDiameter;
+			float d = squareDiameter*r;
     		GL2 gl = drawable.getGL().getGL2();
             float[] ambiColor = {1.0f, 0.0f, 1.0f, 1f};
             float[] specColor = {1.0f, 0.0f, 1.0f, 1f};
@@ -343,6 +378,8 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
     		
     		gl.glTranslatef(x,y,z);
+    		gl.glRotatef(rotation,0.0f,0.0f,1.0f);
+    		gl.glTranslatef(0f,0f,0f);
     		
     		gl.glBegin(GL2.GL_LINE_LOOP);
     		
@@ -373,8 +410,8 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     
     class Star extends MyObject {
 
-    	public Star(GL2 gl, GLU glu) {
-    		super(gl, glu);
+    	public Star(GLU glu) {
+    		super(glu);
     		this.x = generateRandom(0.3f, 0.5f);
     		this.y = generateRandom(0.3f, 0.5f);
     		this.r = generateRandom(0.1f, 0.5f);
@@ -390,6 +427,8 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
 
     		gl.glTranslatef(x,y,z);
+    		gl.glRotatef(rotation,0.0f,0.0f,1.0f);
+    		gl.glTranslatef(0f,0f,0f);
 
     		gl.glBegin(GL2.GL_TRIANGLES);
 
@@ -427,11 +466,11 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 
     class Sphere extends MyObject {
 
-    	public Sphere(GL2 gl, GLU glu) {
-    		super(gl, glu);
+    	public Sphere(GLU glu) {
+    		super(glu);
     		this.x = generateRandom(0.3f, 0.5f);
     		this.y = generateRandom(0.3f, 0.5f);
-    		this.r = generateRandom(0.1f, 0.5f);
+    		this.r = generateRandom(0.1f, 0.3f);
 		}
 		@Override
 		public void render(GLAutoDrawable drawable) {
@@ -440,11 +479,13 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
             float[] ambiColor = {1f, 0.0f, 0.0f, 1f};
             float[] specColor = {1f, 0.0f, 0.0f, 1f};
             float[] diffColor = {1f, 0.0f, 0.0f, 1f};
-            float[] shininess = {0.1f};
+            float[] shininess = {0.3f};
 
 		    gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
     		gl.glTranslatef(x,y,z);
+    		gl.glRotatef(rotation,0.0f,0.0f,1.0f);
+    		gl.glTranslatef(0f,0f,0f);
 		    gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, ambiColor, 0);
             gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, specColor, 0);
             gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, diffColor, 0);
@@ -456,12 +497,18 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     }
     
     class LightSource extends MyObject {
-    	public LightSource(GL2 gl, GLU glu) {
-    		super(gl, glu);
-			x = 1f;
-			y = 1f;
-			z=-5f;
+    	public LightSource(GLU glu) {
+    		super(glu);
+			x = 0f;
+			y = 0f;
+			z=10f;
 		}
+    	@Override
+    	public void update(float x, float y, float z, float r, float color1,
+    			float color2, float color3, float rotation) {
+    		super.update(x, y, z, r, color1, color2, color3, rotation);
+    		z = z+10f;
+    	}
 		@Override
 		public void render(GLAutoDrawable drawable) {
 			GL2 gl = drawable.getGL().getGL2();
@@ -469,7 +516,7 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 		    float[] spec =    { 1f, 0.6f, 0.0f, 1f };
 		    float[] diffuse ={ 1f, 1f, 1f, 1f };
 		    float[] pos = {x,y,z};
-			z=-10f;
+			//z=10f;
 
 		    gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
@@ -500,13 +547,13 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 
 		GL2 gl = drawable.getGL().getGL2();
 		
-    	data = new ObjectsData(gl, glu);
+    	data = new ObjectsData(glu);
 		
-		data.addObject(new Square(gl, glu));
-    	data.addObject(new SquareBasedPyramid(gl, glu));
-    	data.addObject(new Star(gl, glu));
-    	data.addObject(new Sphere(gl, glu));
-    	data.addObject(new LightSource(gl, glu));
+		data.addObject(new Square(glu));
+    	data.addObject(new SquareBasedPyramid(glu));
+    	data.addObject(new Star(glu));
+    	data.addObject(new Sphere(glu));
+    	data.addObject(new LightSource(glu));
     	
 		gl.glShadeModel(GL2.GL_SMOOTH);
     	gl.glEnable(GL2.GL_LIGHTING);
@@ -518,6 +565,7 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     	
 		gl.glMatrixMode(GL2.GL_PROJECTION);
 		gl.glLoadIdentity();
+		gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT);
 		gl.glClearColor(0,0,0.0f,1);
 		//gl.glColor3f(1f, 1f, 1f);
 	}
@@ -529,6 +577,28 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 		gl.glMatrixMode(GL2.GL_PROJECTION);
 		gl.glLoadIdentity();
 		glu.gluOrtho2D(0.0f,1.0f,0.0f,1.0f);
+	}
+	
+	// http://www.java-tips.org/other-api-tips/jogl/how-to-use-gluunproject-in-jogl.html
+	public double[] convertToGL(GL gl, int x, int y, float z) {
+		int[] viewport = new int[4];
+	    double mvmatrix[] = new double[16];
+	    double projmatrix[] = new double[16];
+	    int realy = 0;
+	    double wcoord[] = new double[4];
+		
+		gl.glGetIntegerv(GL2.GL_VIEWPORT, viewport, 0);
+        ((GL2GL3) gl).glGetDoublev(GL2.GL_MODELVIEW_MATRIX, mvmatrix, 0);
+        ((GL2GL3) gl).glGetDoublev(GL2.GL_PROJECTION_MATRIX, projmatrix, 0);
+        realy = viewport[3] - (int) y - 1;
+        glu.gluUnProject((double) x, (double) realy, z, 
+            mvmatrix, 0,
+            projmatrix, 0, 
+            viewport, 0, 
+            wcoord, 0);
+		
+		double[] ret = { wcoord[0],wcoord[1],wcoord[2]};
+		return ret;
 	}
 	
 	private void render(GLAutoDrawable drawable) {
@@ -562,65 +632,49 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
             data.render(drawable);
             gl.glMatrixMode(GL2.GL_PROJECTION);
             gl.glPopMatrix();
-            gl.glFlush();
+            //gl.glFlush();
             hits = gl.glRenderMode(GL2.GL_RENDER);
-            processHits(hits, selectBuffer);
             id = getClickedId(hits, selectBuffer);
-            System.out.println("id:"+id);
-        	
+            System.out.println("Clickaed id:"+id+".");
+            selectedObject = data.getObject(id);
+            if(selectedObject != null) {
+            	System.out.println(id+":"+selectedObject.toString());
+            	mouseZ = selectedObject.z;
+            } else {
+            	mouseZ = 0;
+            }
+        	joglPoint = convertToGL(gl, mouseX, mouseY, mouseZ);
+        	command = Command.UPDATE;
+        } else if(command == Command.TRANSLATE_MOUSE) {
+    		joglPoint = convertToGL(gl, mouseX, mouseY, mouseZ);
+        	data.render(drawable);
+        	command = Command.UPDATE;
+        } else {
         	command = Command.UPDATE;
         }
 	}
 	
+	
+	
 	private int getClickedId(int hits, IntBuffer buffer) {
 		int offset = 0;
 		int names = -1;
+		int ret = -1;
       	float z1, z2;
       	for (int i=0;i<hits;i++) {
       		names = buffer.get(offset); offset++;
-      		//z1 = (float) (buffer.get(offset)& 0xffffffffL) / 0x7fffffff; offset++;
-      		//z2 = (float) (buffer.get(offset)& 0xffffffffL) / 0x7fffffff; offset++;
+      		z1 = (float) (buffer.get(offset)& 0xffffffffL) / 0x7fffffff; offset++;
+            z2 = (float) (buffer.get(offset)& 0xffffffffL) / 0x7fffffff; offset++;
       		for (int j=0;j<names;j++) {
+      			ret = buffer.get(offset);
       			offset++;
             }
         }
-      	if(names == -1) {
+      	if(ret == -1) {
       		return -1;
       	}
-      	return names-1;
+      	return ret-1;
 	}
-	
-	public void processHits(int hits, IntBuffer buffer) {
-		System.out.println("---------------------------------");
-	      System.out.println(" HITS: " + hits);
-	      int offset = 0;
-	      int names;
-	      float z1, z2;
-	      for (int i=0;i<hits;i++)
-	        {
-	          System.out.println("- - - - - - - - - - - -");
-	          System.out.println(" hit: " + (i + 1));
-	          names = buffer.get(offset); offset++;
-	          z1 = (float) (buffer.get(offset)& 0xffffffffL) / 0x7fffffff; offset++;
-	          z2 = (float) (buffer.get(offset)& 0xffffffffL) / 0x7fffffff; offset++;
-	          System.out.println(" number of names: " + names);
-	          System.out.println(" z1: " + z1);
-	          System.out.println(" z2: " + z2);
-	          System.out.println(" names: ");
-
-	          for (int j=0;j<names;j++)
-	            {
-	              System.out.print("       " + buffer.get(offset)); 
-	              if (j==(names-1))
-	                System.out.println("<-");
-	              else
-	                System.out.println();
-	              offset++;
-	            }
-	          System.out.println("- - - - - - - - - - - -");
-	        }
-	      System.out.println("---------------------------------");
-    }
 	
 	private void update() {
 	    // nothing to update yet
@@ -628,7 +682,7 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 
 	@Override
 	public void mouseClicked(MouseEvent e) {
-		System.out.println("mouseClicked");
+		
 	}
 
 	@Override
@@ -643,15 +697,62 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 
 	@Override
 	public void mousePressed(MouseEvent e) {
-		System.out.println("mousePressed");
-		command = Command.SELECT;
 		mouseX = e.getX();
 		mouseY = e.getY();
+		command = Command.SELECT;
 	}
 
 	@Override
 	public void mouseReleased(MouseEvent e) {
-		System.out.println("mouseReleased");
+		if(selectedObject != null && KeysCurrentlyPressed.move) {
+			selectedObject.x = (float) joglPoint[0];
+			selectedObject.y = (float) joglPoint[1];
+			//selectedObject.z = (float) joglPoint[2];
+		} else if(selectedObject != null && KeysCurrentlyPressed.resize) {
+			if((float) joglPoint[0] < selectedObject.x) {
+				selectedObject.r = selectedObject.x - (float) joglPoint[0];
+			} else {
+				selectedObject.r = (float) joglPoint[0] - selectedObject.x;
+			}
+		} else if(selectedObject != null && KeysCurrentlyPressed.rotate) {
+			if((float) joglPoint[0] < selectedObject.x) {
+				selectedObject.rotation += (selectedObject.x - (float) joglPoint[0])*360;
+			} else {
+				selectedObject.rotation -= ((float) joglPoint[0] - selectedObject.x)*360;
+			}
+			if(selectedObject.rotation > 360f) {
+				selectedObject.rotation -= 360f;
+			} else if(selectedObject.rotation < 360f) {
+				selectedObject.rotation += 360f;
+			}
+		} else if(selectedObject == null && (
+				KeysCurrentlyPressed.square || 
+				KeysCurrentlyPressed.star || 
+				KeysCurrentlyPressed.sphare || 
+				KeysCurrentlyPressed.pyramid || 
+				KeysCurrentlyPressed.light)) {
+			MyObject o = null;
+			if(KeysCurrentlyPressed.square) {
+				o = new Square(glu);
+			} else if(KeysCurrentlyPressed.star) {
+				o = new Star(glu);
+			} else if(KeysCurrentlyPressed.sphare) {
+				o = new Sphere(glu);
+			} else if(KeysCurrentlyPressed.pyramid) {
+				o = new SquareBasedPyramid(glu);
+			} else if(KeysCurrentlyPressed.light) {
+				o = new LightSource(glu);
+			}
+			o.x = (float) joglPoint[0];
+			o.y = (float) joglPoint[1];
+			//o.z = (float) joglPoint[2];
+			System.out.println(o);
+			data.addObject(o);
+		}
+		
+		
+		//selectedObject = null;
+		//mouseZ = 0;
 		command = Command.UPDATE;
 	}
 
@@ -666,35 +767,76 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
         } else if ((e.getKeyCode() == KeyEvent.VK_D) && ((e.getModifiers() & KeyEvent.CTRL_MASK) != 0)) {
             System.out.println("Delete.");
             data.deleteAllObjects();
+        } else if ((e.getKeyCode() == KeyEvent.VK_X) && ((e.getModifiers() & KeyEvent.CTRL_MASK) != 0)) {
+            System.out.println("Cut.");
+            if(selectedObject != null) {
+	            data.saveData(selectedObject.toString());
+	            data.deleteObject(selectedObject);
+            }
+        } else if(e.getKeyCode() == KeyEvent.VK_1) {
+        	KeysCurrentlyPressed.sphare = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_2) {
+        	KeysCurrentlyPressed.star = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_3) {
+        	KeysCurrentlyPressed.square = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_4) {
+        	KeysCurrentlyPressed.pyramid = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_5) {
+        	KeysCurrentlyPressed.light = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_R) {
+        	KeysCurrentlyPressed.rotate = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_SHIFT) {
+        	KeysCurrentlyPressed.resize = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_SPACE) {
+        	KeysCurrentlyPressed.move = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_C) {
+        	KeysCurrentlyPressed.color = false;
+        } else if(selectedObject != null && e.getKeyCode() == KeyEvent.VK_PLUS) {
+        	selectedObject.z = selectedObject.z+0.1f;
+        } else if(selectedObject != null && e.getKeyCode() == KeyEvent.VK_MINUS) {
+        	selectedObject.z = selectedObject.z-0.1f;
         }
 	}
 
 	@Override
 	public void keyReleased(KeyEvent e) {
-		switch (e.getKeyChar()) {
-	      case KeyEvent.VK_ESCAPE:
-	        System.exit(0);
-	        break;
-
-	      default:
-	        break;
-	    }
+		if(e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+			System.exit(0);
+		} else if(e.getKeyCode() == KeyEvent.VK_1) {
+        	KeysCurrentlyPressed.sphare = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_2) {
+        	KeysCurrentlyPressed.star = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_3) {
+        	KeysCurrentlyPressed.square = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_4) {
+        	KeysCurrentlyPressed.pyramid = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_5) {
+        	KeysCurrentlyPressed.light = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_R) {
+        	KeysCurrentlyPressed.rotate = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_SHIFT) {
+        	KeysCurrentlyPressed.resize = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_SPACE) {
+        	KeysCurrentlyPressed.move = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_C) {
+        	KeysCurrentlyPressed.color = false;
+        }
 	}
 
 	@Override
 	public void keyTyped(KeyEvent e) {
-		System.out.println("keyTyped");
+		
 		
 	}
 
 	@Override
-	public void mouseDragged(MouseEvent arg0) {
-		System.out.println("mouseDragged");
-		
+	public void mouseDragged(MouseEvent e) {
+		mouseX = e.getX();
+		mouseY = e.getY();
+		command = Command.TRANSLATE_MOUSE;
 	}
 
 	@Override
 	public void mouseMoved(MouseEvent arg0) {
-		
 	}
 }
