@@ -443,7 +443,7 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
             float[] ambiColor = {0.0f, 1.0f, 0.0f, 1f};
             float[] specColor = {0.0f, 1.0f, 0.0f, 1f};
             float[] diffColor = {0.0f, 1.0f, 0.0f, 1f};
-    		
+            float[] shininess = {1.0f*128f};
     		gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
 
@@ -456,6 +456,7 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
             gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, ambiColor, 0);
             gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, specColor, 0);
             gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, diffColor, 0);
+            gl.glMaterialfv(GL.GL_FRONT, GL2.GL_SHININESS, shininess, 0);
     		
     		gl.glColor3f(0.0f, 1.0f, 0.0f);
     		
@@ -469,6 +470,7 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
             gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, ambiColor, 0);
             gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, specColor, 0);
             gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, diffColor, 0);
+            gl.glMaterialfv(GL.GL_FRONT, GL2.GL_SHININESS, shininess, 0);
     		
     		gl.glColor3f(0.0f, 1.0f, 0.0f);
     		
@@ -495,12 +497,12 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 		}
 		@Override
 		public void render(GLAutoDrawable drawable) {
-			GL2 gl = drawable.getGL().getGL2();
+ 			GL2 gl = drawable.getGL().getGL2();
 			GLUT glut = new GLUT();
-            float[] ambiColor = {1f, 0.0f, 0.0f, 1f};
-            float[] specColor = {1f, 0.0f, 0.0f, 1f};
-            float[] diffColor = {1f, 0.0f, 0.0f, 1f};
-            float[] shininess = {0.3f};
+            float[] ambiColor = {1f, 0.1f, 0.0f, 1f};
+            float[] specColor = {1f, 0.1f, 0.0f, 1f};
+            float[] diffColor = {1f, 0.1f, 0.0f, 1f};
+            float[] shininess = {1f*128f};
 
 		    gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
@@ -518,27 +520,27 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     }
     
     class LightSource extends MyObject {
+    	private float extraInZ = 2f;
     	public LightSource(GLU glu) {
     		super(glu);
 			x = 0f;
 			y = 0f;
-			z=10f;
+			z = extraInZ;
 		}
     	@Override
     	public void update(float x, float y, float z, float r, float color1,
     			float color2, float color3, float rotation) {
     		super.update(x, y, z, r, color1, color2, color3, rotation);
-    		z = z+10f;
+    		z = z+extraInZ;
     	}
 		@Override
 		public void render(GLAutoDrawable drawable) {
 			GL2 gl = drawable.getGL().getGL2();
-		    float[] noAmbient ={ 0.1f, 0.1f, 0.1f, 1f }; 
-		    float[] spec =    { 1f, 0.6f, 0.0f, 1f };
+		    float[] noAmbient ={ 0.0f, 0.0f, 0.0f, 1f };
+		    float[] spec =    { 0.8f, 0.8f, 0.8f, 1f };
 		    float[] diffuse ={ 1f, 1f, 1f, 1f };
-		    float[] pos = {x,y,z};
+		    float[] pos = {x,y,z, 1};
 			//z=10f;
-
 		    gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
 		    gl.glLightfv(GLLightingFunc.GL_LIGHT0, GLLightingFunc.GL_AMBIENT, noAmbient, 0);
@@ -547,6 +549,12 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 		    gl.glLightfv(GLLightingFunc.GL_LIGHT0, GLLightingFunc.GL_POSITION, pos, 0);
     		gl.glPopAttrib();
 		    gl.glPopMatrix();
+		}
+		@Override
+		protected void finalize() throws Throwable {
+			super.finalize();
+
+			//gl.glDisable( GL2.GL_LIGHT0 );
 		}
     }	
     
@@ -569,19 +577,20 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 		GL2 gl = drawable.getGL().getGL2();
 		
     	data = new ObjectsData(glu);
-		
+		/*
 		data.addObject(new Square(glu));
     	data.addObject(new SquareBasedPyramid(glu));
     	data.addObject(new Star(glu));
     	data.addObject(new Sphere(glu));
     	data.addObject(new LightSource(glu));
-    	
+    	*/
 		gl.glShadeModel(GL2.GL_SMOOTH);
     	gl.glEnable(GL2.GL_LIGHTING);
     	gl.glEnable(GL2.GL_LIGHT0);
     	gl.glEnable(GL2.GL_DEPTH_TEST);
+    	gl.glDepthFunc(GL2.GL_LEQUAL);
     	gl.glDepthFunc(GL.GL_LESS);
-        gl.glEnable(GL2.GL_NORMALIZE);
+        //gl.glEnable(GL2.GL_NORMALIZE);
         //gl.glEnable(GL2.GL_CULL_FACE);
     	
 		gl.glMatrixMode(GL2.GL_PROJECTION);
@@ -793,9 +802,17 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
         } else if(e.getKeyCode() == KeyEvent.VK_C) {
         	KeysCurrentlyPressed.color = false;
         } else if(selectedObject != null && e.getKeyCode() == KeyEvent.VK_PLUS) {
-        	selectedObject.z = selectedObject.z+0.1f;
+        	if((e.getModifiers() & KeyEvent.CTRL_MASK) != 0) {
+        		selectedObject.z = selectedObject.z+1f;
+        	} else {
+        		selectedObject.z = selectedObject.z+0.1f;
+        	}
         } else if(selectedObject != null && e.getKeyCode() == KeyEvent.VK_MINUS) {
-        	selectedObject.z = selectedObject.z-0.1f;
+        	if((e.getModifiers() & KeyEvent.CTRL_MASK) != 0) {
+        		selectedObject.z = selectedObject.z-1f;
+        	} else {
+        		selectedObject.z = selectedObject.z-0.1f;
+        	}
         }
 	}
 
