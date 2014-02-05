@@ -4,9 +4,9 @@ The program should be compileable.
 If glugen-rt-natives-windows something is missing it can be found at http://jogamp.org/, place it in lib. 
 
 I've used the following as aid: 
-https://sites.google.com/site/justinscsstuff/jogl-tutorials
-and picking.java from jogl official website.
-https://docs.google.com/file/d/0B9hhZie2D-fEZGI2NTZhZTMtYWYwNS00NTljLWFiNGQtM2UyNTYyNjAzNDYy/edit?hl=en
+ - https://sites.google.com/site/justinscsstuff/jogl-tutorials
+ - and picking.java from jogl official website.
+ - https://docs.google.com/file/d/0B9hhZie2D-fEZGI2NTZhZTMtYWYwNS00NTljLWFiNGQtM2UyNTYyNjAzNDYy/edit?hl=en
 
 I've also used the slides from lecture 2,4. 
 
