@@ -572,8 +572,7 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 
 	@Override
 	public void init(GLAutoDrawable drawable) {
-		// https://docs.google.com/file/d/0B9hhZie2D-fEZGI2NTZhZTMtYWYwNS00NTljLWFiNGQtM2UyNTYyNjAzNDYy/edit?hl=en
-
+		
 		GL2 gl = drawable.getGL().getGL2();
 		
     	data = new ObjectsData(glu);
