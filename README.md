@@ -14,17 +14,17 @@ Everything is in the same class SimpleScene, including nestled objects.
 
 Controlls
 ===========
-Spawn objects by clicking+1,2,3,4. 
-Move/add lightsource with clicking+5. 
-Select next object with arrows left and right. 
-Move selected object in z-axis with + and -. Speed up by pressing ctrl. 
-Move object with clicking+draging+space. 
-Reshape object with clicking+draging+shift. 
-Rotate object with clicking+draging+r. 
-Load in objects with ctrl+v with valid string in clipboard. 
-Save all objects to clipboard by ctrl+c. 
-Cut selected object with ctrl+x. 
-Delete all objects with ctrl+d. 
+-Spawn objects by clicking+1,2,3,4. 
+-Move/add lightsource with clicking+5. 
+-Select next object with arrows left and right. 
+-Move selected object in z-axis with + and -. Speed up by pressing ctrl. 
+-Move object with clicking+draging+space. 
+-Reshape object with clicking+draging+shift. 
+-Rotate object with clicking+draging+r. 
+-Load in objects with ctrl+v with valid string in clipboard. 
+-Save all objects to clipboard by ctrl+c. 
+-Cut selected object with ctrl+x. 
+-Delete all objects with ctrl+d. 
  
 Examples
 ===========
