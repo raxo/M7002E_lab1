@@ -27,6 +27,7 @@ Controlls
  - Save all objects to clipboard by ctrl+c. 
  - Cut selected object with ctrl+x. 
  - Delete all objects with ctrl+d. 
+ - Escape exits the program. 
  
 Examples
 ===========
