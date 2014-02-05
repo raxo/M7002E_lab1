@@ -6,15 +6,17 @@ If glugen-rt-natives-windows something is missing it can be found at http://joga
 I've used the following as aid: 
  - https://sites.google.com/site/justinscsstuff/jogl-tutorials
  - and picking.java from jogl official website.
- - https://docs.google.com/file/d/0B9hhZie2D-fEZGI2NTZhZTMtYWYwNS00NTljLWFiNGQtM2UyNTYyNjAzNDYy/edit?hl=en
+ - http://www.java-tips.org/other-api-tips/jogl/how-to-use-gluunproject-in-jogl.html
 
 I've also used the slides from lecture 2,4. 
 
 Everything is in the same class SimpleScene, including nestled objects. 
 
+All extra features is implemented. The fileformat for save/load is up to the user since the clipboard is used. Representation of each object is defined in the abstract class. See examples down below for text format. 
+
 Controlls
 ===========
- - Spawn objects by clicking+1,2,3,4. 
+ - Spawn objects by clicking+1,2,3,4... 
  - Move/add lightsource with clicking+5. 
  - Select next object with arrows left and right. 
  - Move selected object in z-axis with + and -. Speed up by pressing ctrl. 
