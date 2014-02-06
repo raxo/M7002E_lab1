@@ -42,6 +42,7 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 	private Command command = Command.UPDATE;
 	static final int UPDATE = 0, SELECT = 1;
 	int mouseX = 0, mouseY = 0;
+	int mouseXPressed = 0, mouseYPressed = 0;
 	float mouseZ = 0;
 	double[] joglPoint = {0,0,0};
 	
@@ -56,7 +57,11 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 		public boolean rotate = false;
 		public boolean move = false;
 		public boolean resize = false;
-		public boolean color = false;
+		public boolean colorAmbient = false;
+		public boolean colorSpecular = false;
+		public boolean colorDiffuse = false;
+		public boolean shininess = false;
+		public boolean focusSelected = false;
 	}
 	
 	public enum Command {
@@ -99,7 +104,6 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     class ObjectsData implements ClipboardOwner  {
     	
     	private Vector<MyObject> myObjects;
-        private GLU glu;
     	
     	final public String[] validObjects = {
 			"star",
@@ -109,9 +113,8 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 			"sphere"
     	};
     	
-    	public ObjectsData(GLU glu) {
+    	public ObjectsData() {
     		myObjects = new Vector<MyObject>();
-            this.glu = glu;
 		}
 
     	public void addObject(MyObject o) {
@@ -119,42 +122,53 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     	}
     	public boolean addObject(String s) {
     		String[] objectArray;
-    		float x,y,z,r,color1,color2,color3, rotation;
+    		float x,y,z,r,rotation, shininess;
+    		float[] colorAmbient = new float[4], colorSpecular = new float[4], colorDiffuse = new float[4];
     		boolean success = true;
 			MyObject myObject = null;
 			
     		objectArray = s.split(",");
     		
-			if(objectArray.length >= 9) {
+			if(objectArray.length >= 19) {
     			if(Arrays.asList(validObjects).contains(objectArray[0])) {
     				x = Float.valueOf(objectArray[1]).floatValue();
     				y = Float.valueOf(objectArray[2]).floatValue();
     				z = Float.valueOf(objectArray[3]).floatValue();
     				r = Float.valueOf(objectArray[4]).floatValue();
-    				color1 = Float.valueOf(objectArray[5]).floatValue();
-    				color2 = Float.valueOf(objectArray[6]).floatValue();
-    				color3 = Float.valueOf(objectArray[7]).floatValue();
-    				rotation = Float.valueOf(objectArray[8]).floatValue();
+    				rotation = Float.valueOf(objectArray[5]).floatValue();
+    				shininess = Float.valueOf(objectArray[6]).floatValue();
+    				colorAmbient[0] = Float.valueOf(objectArray[7]).floatValue();
+    				colorAmbient[1] = Float.valueOf(objectArray[8]).floatValue();
+    				colorAmbient[2] = Float.valueOf(objectArray[9]).floatValue();
+    				colorAmbient[3] = Float.valueOf(objectArray[10]).floatValue();
+    				colorSpecular[0] = Float.valueOf(objectArray[11]).floatValue();
+    				colorSpecular[1] = Float.valueOf(objectArray[12]).floatValue();
+    				colorSpecular[2] = Float.valueOf(objectArray[13]).floatValue();
+    				colorSpecular[3] = Float.valueOf(objectArray[14]).floatValue();
+    				colorDiffuse[0] = Float.valueOf(objectArray[15]).floatValue();
+    				colorDiffuse[1] = Float.valueOf(objectArray[16]).floatValue();
+    				colorDiffuse[2] = Float.valueOf(objectArray[17]).floatValue();
+    				colorDiffuse[3] = Float.valueOf(objectArray[18]).floatValue();
     				
     				switch (objectArray[0]) {
 					case "star":
-						myObject = new Star(glu);
+						myObject = new Star();
 						break;
 						
 					case "pyramid":
-						myObject = new SquareBasedPyramid(glu);
+						myObject = new SquareBasedPyramid();
 						break;
 
 					case "square":
-						myObject = new Square(glu);
+						myObject = new Square();
 						break;
 						
 					case "light":
-						myObject = new LightSource(glu);
+						myObject = new LightSource();
 						break;
 						
 					case "sphere":
-						myObject = new Sphere(glu);
+						myObject = new Sphere();
 						break;
 
 					default:
@@ -162,11 +176,13 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 						success = false;
 						break;
 					}
-					myObject.update(x, y, z, r, color1, color2, color3, rotation);
+					myObject.update(x, y, z, r, colorAmbient, colorSpecular, colorDiffuse, rotation);
 					addObject(myObject);
     			} else {
     				success = false;
     			}
+			} else {
+				success = false;
 			}
     		return success;
     	}
@@ -278,21 +294,26 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     
     //jogamp.org/jogl-demos/src/demos/misc/Picking.java 
     abstract class MyObject {
-    	public float x,y,z,r,color1,color2,color3, rotation;
-    	private GLU glu;
+    	public float x,y,z,r, rotation, shininess;
+    	public float[] colorAmbient = new float[4],colorSpecular = new float[4],colorDiffuse = new float[4];
     	
-        public MyObject(GLU glu) {
-            this.glu = glu;
+        public MyObject() {
 		}
     	
-        public void update(float x, float y, float z, float r, float color1, float color2, float color3, float rotation) {
+        public void update(float x, float y, float z, float r, float[] colorAmbient, float[] colorSpecular, float[] colorDiffuse, float rotation) {
         	this.x=x;
         	this.y=y;
         	this.z=z;
         	this.r=r;
-        	this.color1=color1;
-        	this.color2=color2;
-        	this.color3=color3;
+        	if(colorAmbient.length == 4) {
+        		this.colorAmbient=colorAmbient;
+        	}
+        	if(colorSpecular.length == 4) {
+        		this.colorSpecular=colorSpecular;
+        	}
+        	if(colorDiffuse.length == 4) {
+        		this.colorDiffuse=colorDiffuse;
+        	}
         	this.rotation = rotation;
         }
         
@@ -330,24 +351,43 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     		} else {
     			return "";
     		}
-    		return ret+","+x+","+y+","+z+","+r+","+color1+","+color2+","+color3+""+","+rotation+"";
+    		ret += ","+x+","+y+","+z+","+r+","+rotation+""+","+shininess+"";
+    		for (int i = 0; i < colorAmbient.length; i++) {
+    			ret += ","+colorAmbient[i];
+			}
+    		for (int i = 0; i < colorSpecular.length; i++) {
+    			ret += ","+colorSpecular[i];
+			}
+    		for (int i = 0; i < colorDiffuse.length; i++) {
+    			ret += ","+colorDiffuse[i];
+			}
+    		return ret;
     	}
     }
     
     class Square extends MyObject {
     	
-    	public Square(GLU glu) {
-    		super(glu);
+    	public Square() {
     		x = generateRandom(0.2f, 0.5f);
     		y = generateRandom(0.2f, 0.8f);
     		r = generateRandom(0.2f, 0.3f);
+		    colorAmbient[0] = 0f;
+		    colorAmbient[1] = 0f;
+		    colorAmbient[2] = 1f;
+		    colorAmbient[3] = 1f;
+		    colorSpecular[0] = 0f;
+		    colorSpecular[1] = 0f;
+		    colorSpecular[2] = 1f;
+		    colorSpecular[3] = 1f;
+		    colorDiffuse[0] = 0f;
+		    colorDiffuse[1] = 0f;
+		    colorDiffuse[2] = 1f;
+		    colorDiffuse[3] = 1f;
 		}
     	
     	public void render(GLAutoDrawable drawable) {
     		GL2 gl = drawable.getGL().getGL2();
-            float[] ambiColor = {0.0f, 0.0f, 1.0f, 1f};
-            float[] specColor = {0.0f, 0.0f, 1.0f, 1f};
-            float[] diffColor = {0.0f, 0.0f, 1.0f, 1f};
+            float[] shininess = {this.shininess};
     	    
     		gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
@@ -358,9 +398,10 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     		
     		gl.glBegin(GL2.GL_QUADS);
 
-    		gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, ambiColor, 0);
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, specColor, 0);
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, diffColor, 0);
+    		gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, colorAmbient, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, colorSpecular, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, colorDiffuse, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SHININESS, shininess, 0);
 
     		gl.glColor3f(0.0f, 0.0f, 1.0f);
     		
@@ -379,21 +420,30 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     	private int levels;
     	private float squareDiameter;
     	
-    	public SquareBasedPyramid(GLU glu) {
-    		super(glu);
+    	public SquareBasedPyramid() {
     		x = generateRandom(0.0f, 0.4f);
     		y = generateRandom(0.0f, 0.4f);
     		r = generateRandom(0.3f, 0.6f);
     		levels = 10;
     		squareDiameter = 0.1f;
+		    colorAmbient[0] = 1f;
+		    colorAmbient[1] = 0f;
+		    colorAmbient[2] = 1f;
+		    colorAmbient[3] = 1f;
+		    colorSpecular[0] = 1f;
+		    colorSpecular[1] = 0f;
+		    colorSpecular[2] = 1f;
+		    colorSpecular[3] = 1f;
+		    colorDiffuse[0] = 1f;
+		    colorDiffuse[1] = 0f;
+		    colorDiffuse[2] = 1f;
+		    colorDiffuse[3] = 1f;
 		}
     	
 		public void render(GLAutoDrawable drawable) {
 			float d = squareDiameter*r;
     		GL2 gl = drawable.getGL().getGL2();
-            float[] ambiColor = {1.0f, 0.0f, 1.0f, 1f};
-            float[] specColor = {1.0f, 0.0f, 1.0f, 1f};
-            float[] diffColor = {1.0f, 0.0f, 1.0f, 1f};
+            float[] shininess = {this.shininess};
             
     		gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
@@ -404,10 +454,10 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     		
     		gl.glBegin(GL2.GL_LINE_LOOP);
     		
-
-    		gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, ambiColor, 0);
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, specColor, 0);
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, diffColor, 0);
+    		gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, colorAmbient, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, colorSpecular, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, colorDiffuse, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SHININESS, shininess, 0);
 
     		gl.glColor3f(1.0f, 0.0f, 1.0f);
     		
@@ -431,19 +481,28 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     
     class Star extends MyObject {
 
-    	public Star(GLU glu) {
-    		super(glu);
+    	public Star() {
     		this.x = generateRandom(0.3f, 0.5f);
     		this.y = generateRandom(0.3f, 0.5f);
     		this.r = generateRandom(0.1f, 0.5f);
+		    colorAmbient[0] = 0f;
+		    colorAmbient[1] = 1f;
+		    colorAmbient[2] = 0f;
+		    colorAmbient[3] = 1f;
+		    colorSpecular[0] = 0f;
+		    colorSpecular[1] = 1f;
+		    colorSpecular[2] = 0f;
+		    colorSpecular[3] = 1f;
+		    colorDiffuse[0] = 0f;
+		    colorDiffuse[1] = 1f;
+		    colorDiffuse[2] = 0f;
+		    colorDiffuse[3] = 1f;
 		}
     	
 		public void render(GLAutoDrawable drawable) {
 			GL2 gl = drawable.getGL().getGL2();
-            float[] ambiColor = {0.0f, 1.0f, 0.0f, 1f};
-            float[] specColor = {0.0f, 1.0f, 0.0f, 1f};
-            float[] diffColor = {0.0f, 1.0f, 0.0f, 1f};
-            float[] shininess = {1.0f*128f};
+            float[] shininess = {this.shininess*128f};
+    		
     		gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
 
@@ -452,11 +511,11 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     		gl.glTranslatef(0f,0f,0f);
 
     		gl.glBegin(GL2.GL_TRIANGLES);
-
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, ambiColor, 0);
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, specColor, 0);
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, diffColor, 0);
-            gl.glMaterialfv(GL.GL_FRONT, GL2.GL_SHININESS, shininess, 0);
+    		
+    		gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, colorAmbient, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, colorSpecular, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, colorDiffuse, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SHININESS, shininess, 0);
     		
     		gl.glColor3f(0.0f, 1.0f, 0.0f);
     		
@@ -466,11 +525,11 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     		gl.glEnd();
 
     		gl.glBegin(GL2.GL_TRIANGLES);
-
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, ambiColor, 0);
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, specColor, 0);
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, diffColor, 0);
-            gl.glMaterialfv(GL.GL_FRONT, GL2.GL_SHININESS, shininess, 0);
+    		
+    		gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, colorAmbient, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, colorSpecular, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, colorDiffuse, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SHININESS, shininess, 0);
     		
     		gl.glColor3f(0.0f, 1.0f, 0.0f);
     		
@@ -489,30 +548,39 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 
     class Sphere extends MyObject {
 
-    	public Sphere(GLU glu) {
-    		super(glu);
+    	public Sphere() {
     		this.x = generateRandom(0.3f, 0.5f);
     		this.y = generateRandom(0.3f, 0.5f);
     		this.r = generateRandom(0.1f, 0.3f);
+		    colorAmbient[0] = 0.1f;
+		    colorAmbient[1] = 0.1f;
+		    colorAmbient[2] = 0f;
+		    colorAmbient[3] = 1f;
+		    colorSpecular[0] = 1f;
+		    colorSpecular[1] = 0.1f;
+		    colorSpecular[2] = 0.0f;
+		    colorSpecular[3] = 1f;
+		    colorDiffuse[0] = 1f;
+		    colorDiffuse[1] = 0.1f;
+		    colorDiffuse[2] = 0.0f;
+		    colorDiffuse[3] = 1f;
+		    shininess = 1f;
 		}
 		@Override
 		public void render(GLAutoDrawable drawable) {
- 			GL2 gl = drawable.getGL().getGL2();
+			GL2 gl = drawable.getGL().getGL2();
 			GLUT glut = new GLUT();
-            float[] ambiColor = {1f, 0.1f, 0.0f, 1f};
-            float[] specColor = {1f, 0.1f, 0.0f, 1f};
-            float[] diffColor = {1f, 0.1f, 0.0f, 1f};
-            float[] shininess = {1f*128f};
+            float[] shininess = {this.shininess*128f};
 
 		    gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_ALL_ATTRIB_BITS);
     		gl.glTranslatef(x,y,z);
     		gl.glRotatef(rotation,0.0f,0.0f,1.0f);
     		gl.glTranslatef(0f,0f,0f);
-		    gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, ambiColor, 0);
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, specColor, 0);
-            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, diffColor, 0);
-            gl.glMaterialfv(GL.GL_FRONT, GL2.GL_SHININESS, shininess, 0);
+    		gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, colorAmbient, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, colorSpecular, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, colorDiffuse, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SHININESS, shininess, 0);
 		    glut.glutSolidSphere(r,20,20);
     		gl.glPopAttrib();
 		    gl.glPopMatrix();
@@ -520,32 +588,40 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
     }
     
     class LightSource extends MyObject {
-    	private float extraInZ = 2f;
-    	public LightSource(GLU glu) {
-    		super(glu);
+    	public LightSource() {
 			x = 0f;
 			y = 0f;
-			z = extraInZ;
+			z=10f;
+		    colorAmbient[0] = 0.1f;
+		    colorAmbient[1] = 0.1f;
+		    colorAmbient[2] = 0.1f;
+		    colorAmbient[3] = 1f;
+		    colorSpecular[0] = 1f;
+		    colorSpecular[1] = 0.6f;
+		    colorSpecular[2] = 0.0f;
+		    colorSpecular[3] = 1f;
+		    colorDiffuse[0] = 1f;
+		    colorDiffuse[1] = 1f;
+		    colorDiffuse[2] = 1f;
+		    colorDiffuse[3] = 1f;
 		}
+    	
     	@Override
-    	public void update(float x, float y, float z, float r, float color1,
-    			float color2, float color3, float rotation) {
-    		super.update(x, y, z, r, color1, color2, color3, rotation);
-    		z = z+extraInZ;
+    	public void update(float x, float y, float z, float r, float[] colorAmbient, float[] colorSpecular, float[] colorDiffuse, float rotation) {
+    		super.update(x,y,z,r,colorAmbient, colorSpecular, colorDiffuse,rotation);
+    		z = z+1;
     	}
+    	
 		@Override
 		public void render(GLAutoDrawable drawable) {
 			GL2 gl = drawable.getGL().getGL2();
-		    float[] noAmbient ={ 0.0f, 0.0f, 0.0f, 1f };
-		    float[] spec =    { 0.8f, 0.8f, 0.8f, 1f };
-		    float[] diffuse ={ 1f, 1f, 1f, 1f };
 		    float[] pos = {x,y,z, 1};
-			//z=10f;
+
 		    gl.glPushMatrix();
     		gl.glPushAttrib(GL2.GL_CURRENT_BIT);
-		    gl.glLightfv(GLLightingFunc.GL_LIGHT0, GLLightingFunc.GL_AMBIENT, noAmbient, 0);
-		    gl.glLightfv(GLLightingFunc.GL_LIGHT0, GLLightingFunc.GL_SPECULAR, spec, 0);
-		    gl.glLightfv(GLLightingFunc.GL_LIGHT0, GLLightingFunc.GL_DIFFUSE, diffuse, 0);
+    		gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, colorAmbient, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_SPECULAR, colorSpecular, 0);
+            gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, colorDiffuse, 0);
 		    gl.glLightfv(GLLightingFunc.GL_LIGHT0, GLLightingFunc.GL_POSITION, pos, 0);
     		gl.glPopAttrib();
 		    gl.glPopMatrix();
@@ -572,17 +648,13 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 
 	@Override
 	public void init(GLAutoDrawable drawable) {
-		
+		// https://docs.google.com/file/d/0B9hhZie2D-fEZGI2NTZhZTMtYWYwNS00NTljLWFiNGQtM2UyNTYyNjAzNDYy/edit?hl=en
+
 		GL2 gl = drawable.getGL().getGL2();
 		
-    	data = new ObjectsData(glu);
-		/*
-		data.addObject(new Square(glu));
-    	data.addObject(new SquareBasedPyramid(glu));
-    	data.addObject(new Star(glu));
-    	data.addObject(new Sphere(glu));
-    	data.addObject(new LightSource(glu));
-    	*/
+    	data = new ObjectsData();
+		
+    	
 		gl.glShadeModel(GL2.GL_SMOOTH);
     	gl.glEnable(GL2.GL_LIGHTING);
     	gl.glEnable(GL2.GL_LIGHT0);
@@ -665,7 +737,9 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
             hits = gl.glRenderMode(GL2.GL_RENDER);
             id = getClickedId(hits, selectBuffer);
             System.out.println("Clickaed id:"+id+".");
-            selectedObject = data.getObject(id);
+    		if(KeysCurrentlyPressed.focusSelected == false) { // dont select new if focus is on!
+    			selectedObject = data.getObject(id);
+    		}
             if(selectedObject != null) {
             	System.out.println(id+":"+selectedObject.toString());
             	mouseZ = selectedObject.z;
@@ -728,6 +802,11 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 	public void mousePressed(MouseEvent e) {
 		mouseX = e.getX();
 		mouseY = e.getY();
+		mouseXPressed = e.getX();
+		mouseYPressed = e.getY();
+		if (e.getButton() != MouseEvent.BUTTON1) {
+			KeysCurrentlyPressed.focusSelected = true;
+		}
 		command = Command.SELECT;
 	}
 
@@ -741,15 +820,15 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 				KeysCurrentlyPressed.light)) {
 			MyObject o = null;
 			if(KeysCurrentlyPressed.square) {
-				o = new Square(glu);
+				o = new Square();
 			} else if(KeysCurrentlyPressed.star) {
-				o = new Star(glu);
+				o = new Star();
 			} else if(KeysCurrentlyPressed.sphare) {
-				o = new Sphere(glu);
+				o = new Sphere();
 			} else if(KeysCurrentlyPressed.pyramid) {
-				o = new SquareBasedPyramid(glu);
+				o = new SquareBasedPyramid();
 			} else if(KeysCurrentlyPressed.light) {
-				o = new LightSource(glu);
+				o = new LightSource();
 			}
 			o.x = (float) joglPoint[0];
 			o.y = (float) joglPoint[1];
@@ -758,7 +837,10 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 			data.addObject(o);
 			selectedObject = o;
 		}
-		
+
+		if (e.getButton() != MouseEvent.BUTTON1) {
+			KeysCurrentlyPressed.focusSelected = false;
+		}
 		
 		//selectedObject = null;
 		//mouseZ = 0;
@@ -768,16 +850,14 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 	@Override
 	public void keyPressed(KeyEvent e) {
 		if ((e.getKeyCode() == KeyEvent.VK_V) && ((e.getModifiers() & KeyEvent.CTRL_MASK) != 0)) {
-            System.out.println("Loading from clipboard.");
             data.loadData();
         } else if ((e.getKeyCode() == KeyEvent.VK_C) && ((e.getModifiers() & KeyEvent.CTRL_MASK) != 0)) {
-            System.out.println("Saving to clipboard.");
             data.saveData();
-        } else if ((e.getKeyCode() == KeyEvent.VK_D) && ((e.getModifiers() & KeyEvent.CTRL_MASK) != 0)) {
-            System.out.println("Delete.");
+        } else if ((e.getKeyCode() == KeyEvent.VK_DELETE) && ((e.getModifiers() & KeyEvent.CTRL_MASK) != 0)) {
             data.deleteAllObjects();
+        } else if ((e.getKeyCode() == KeyEvent.VK_DELETE) && selectedObject != null) {
+            data.deleteObject(selectedObject);
         } else if ((e.getKeyCode() == KeyEvent.VK_X) && ((e.getModifiers() & KeyEvent.CTRL_MASK) != 0)) {
-            System.out.println("Cut.");
             if(selectedObject != null) {
 	            data.saveData(selectedObject.toString());
 	            data.deleteObject(selectedObject);
@@ -798,8 +878,14 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
         	KeysCurrentlyPressed.resize = true;
         } else if(e.getKeyCode() == KeyEvent.VK_SPACE) {
         	KeysCurrentlyPressed.move = true;
-        } else if(e.getKeyCode() == KeyEvent.VK_C) {
-        	KeysCurrentlyPressed.color = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_A) {
+        	KeysCurrentlyPressed.colorAmbient = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_S) {
+        	KeysCurrentlyPressed.colorSpecular = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_D) {
+        	KeysCurrentlyPressed.colorDiffuse = true;
+        } else if(e.getKeyCode() == KeyEvent.VK_F) {
+        	KeysCurrentlyPressed.shininess = true;
         } else if(selectedObject != null && e.getKeyCode() == KeyEvent.VK_PLUS) {
         	if((e.getModifiers() & KeyEvent.CTRL_MASK) != 0) {
         		selectedObject.z = selectedObject.z+1f;
@@ -835,8 +921,14 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
         	KeysCurrentlyPressed.resize = false;
         } else if(e.getKeyCode() == KeyEvent.VK_SPACE) {
         	KeysCurrentlyPressed.move = false;
-        } else if(e.getKeyCode() == KeyEvent.VK_C) {
-        	KeysCurrentlyPressed.color = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_A) {
+        	KeysCurrentlyPressed.colorAmbient = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_S) {
+        	KeysCurrentlyPressed.colorSpecular = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_D) {
+        	KeysCurrentlyPressed.colorDiffuse = false;
+        } else if(e.getKeyCode() == KeyEvent.VK_F) {
+        	KeysCurrentlyPressed.shininess = false;
         } else if(e.getKeyCode() == KeyEvent.VK_RIGHT) {
         	selectedObject = data.getNextObject(selectedObject);
         } else if(e.getKeyCode() == KeyEvent.VK_LEFT) {
@@ -858,23 +950,86 @@ public class SimpleScene implements GLEventListener, MouseListener, KeyListener,
 			selectedObject.x = (float) joglPoint[0];
 			selectedObject.y = (float) joglPoint[1];
 			//selectedObject.z = (float) joglPoint[2];
-		} else if(selectedObject != null && KeysCurrentlyPressed.resize) {
-			if((float) joglPoint[0] < selectedObject.x) {
-				selectedObject.r = selectedObject.x - (float) joglPoint[0];
-			} else {
-				selectedObject.r = (float) joglPoint[0] - selectedObject.x;
+		} else if(selectedObject != null){ 
+			float xDiff = (float) joglPoint[0] - selectedObject.x;
+			float yDiff = (float) joglPoint[1] - selectedObject.y;
+			int colorMultiplyer=3;
+			boolean drawVertical; // 0 right, 2 left, 3 down, 4 up. 
+			
+			if (Math.abs(mouseXPressed-mouseX) > Math.abs(mouseYPressed-mouseY)) { // horizontal
+				drawVertical = false;
+	        } else { // vertical
+	        	drawVertical = true;
+	        }
+			
+			
+			if(KeysCurrentlyPressed.resize) {
+				selectedObject.r = Math.abs(xDiff);
+			} else if(KeysCurrentlyPressed.shininess) {
+				if(Math.abs(xDiff) > 1f) {
+					xDiff = 1f;
+				}
+				selectedObject.shininess = Math.abs(xDiff);
+			} else if(KeysCurrentlyPressed.rotate) {
+				selectedObject.rotation += (Math.abs(xDiff))*360*0.1f;
+				if(selectedObject.rotation > 360f) {
+					selectedObject.rotation -= 360f;
+				} else if(selectedObject.rotation < 360f) {
+					selectedObject.rotation += 360f;
+				}
+			} else if(KeysCurrentlyPressed.colorAmbient) {
+				if(Math.abs(xDiff*colorMultiplyer) > 1f) {
+					xDiff = 1f/colorMultiplyer;
+				}
+				if(Math.abs(yDiff*colorMultiplyer) > 1f) {
+					yDiff = 1f/colorMultiplyer;
+				}
+				if(xDiff < 0 && !drawVertical) {
+					selectedObject.colorAmbient[0] = -xDiff*colorMultiplyer;
+				} else if(!drawVertical) {
+					selectedObject.colorAmbient[2] = xDiff*colorMultiplyer;
+				}
+				if(yDiff < 0 && drawVertical) {
+					selectedObject.colorAmbient[3] = -yDiff*colorMultiplyer;
+				} else if(drawVertical) {
+					selectedObject.colorAmbient[1] = yDiff*colorMultiplyer;
+				}
+			} else if(KeysCurrentlyPressed.colorSpecular) {
+				if(Math.abs(xDiff) > 1f) {
+					xDiff = 1f;
+				}
+				if(Math.abs(yDiff) > 1f) {
+					yDiff = 1f;
+				}
+				if(xDiff < 0 && !drawVertical) {
+					selectedObject.colorSpecular[0] = -xDiff*colorMultiplyer;
+				} else if(!drawVertical) {
+					selectedObject.colorSpecular[2] = xDiff*colorMultiplyer;
+				}
+				if(yDiff < 0 && drawVertical) {
+					selectedObject.colorSpecular[3] = -yDiff*colorMultiplyer;
+				} else if(drawVertical) {
+					selectedObject.colorSpecular[1] = yDiff*colorMultiplyer;
+				}
+			} else if( KeysCurrentlyPressed.colorDiffuse) {
+				if(Math.abs(xDiff) > 1f) {
+					xDiff = 1f;
+				}
+				if(Math.abs(yDiff) > 1f) {
+					yDiff = 1f;
+				}
+				if(xDiff < 0 && !drawVertical) {
+					selectedObject.colorDiffuse[0] = -xDiff*colorMultiplyer;
+				} else if(!drawVertical) {
+					selectedObject.colorDiffuse[2] = xDiff*colorMultiplyer;
+				}
+				if(yDiff < 0 && drawVertical) {
+					selectedObject.colorDiffuse[3] = -yDiff*colorMultiplyer;
+				} else if(drawVertical) {
+					selectedObject.colorDiffuse[1] = yDiff*colorMultiplyer;
+				}
 			}
-		} else if(selectedObject != null && KeysCurrentlyPressed.rotate) {
-			if((float) joglPoint[0] < selectedObject.x) {
-				selectedObject.rotation += (selectedObject.x - (float) joglPoint[0])*360*0.1f;
-			} else {
-				selectedObject.rotation -= ((float) joglPoint[0] - selectedObject.x)*360*0.1f;
-			}
-			if(selectedObject.rotation > 360f) {
-				selectedObject.rotation -= 360f;
-			} else if(selectedObject.rotation < 360f) {
-				selectedObject.rotation += 360f;
-			}
+			System.out.println(selectedObject);
 		}
 	}
 
