@@ -17,7 +17,7 @@ All extra features is implemented. The fileformat for save/load is up to the use
 Controlls
 ===========
  - Spawn objects by clicking+1,2,3,4... 
- - Move/add lightsource with clicking+5. 
+ - Add lightsource with clicking+5. 
  - Select next object with arrows left and right. 
  - Move selected object in z-axis with + and -. Speed up by pressing ctrl. 
  - Move object with clicking+draging+space. 
@@ -26,7 +26,8 @@ Controlls
  - Load in objects with ctrl+v with valid string in clipboard. 
  - Save all objects to clipboard by ctrl+c. 
  - Cut selected object with ctrl+x. 
- - Delete all objects with ctrl+d. 
+ - Delete all objects with ctrl+delete. 
+ - Delete selected object with delete. 
  - Escape exits the program. 
  - Change ambient color by clicking+a and drag around.
  - Change specular color by clicking+s and drag around.
